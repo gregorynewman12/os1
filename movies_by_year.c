@@ -222,8 +222,6 @@ int main()
     // Loops the main program indefinitely
     while (!mainMenu)
     {
-        printf("At the top of the menu.\n");
-        sleep(2);
         char *prompt = "\n1. Select file to process\n2. Exit the program\n\nEnter your selection: ";
         printf("%s", prompt);
         char *lineEntered = NULL;
@@ -238,8 +236,9 @@ int main()
         while (!ok)
         {
             numCharsEntered = getline(&lineEntered, &bufferSize, stdin);
+            lineEntered[numCharsEntered - 1] = '\0';
 
-            if (lineEntered[0] >= 49 && lineEntered[0] <= 50 && strlen(lineEntered) == 2)
+            if (lineEntered[0] >= 49 && lineEntered[0] <= 50 && strlen(lineEntered) == 1)
             {
                 printf("%s", "\n");
                 ok = 1;
@@ -271,8 +270,9 @@ int main()
             while (!ok)
             {
                 numCharsEntered = getline(&lineEntered, &bufferSize, stdin);
+                lineEntered[numCharsEntered - 1] = '\0';
 
-                if (lineEntered[0] >= 49 && lineEntered[0] <= 51 && strlen(lineEntered) == 2)
+                if (lineEntered[0] >= 49 && lineEntered[0] <= 51 && strlen(lineEntered) == 1)
                 {
                     printf("\n");
                     ok = 1;
@@ -300,7 +300,7 @@ int main()
             else if (selection == 50)
             {
                 fileNameToProcess = findSmallestCSV();
-                printf("User entered 2. Exiting.\n");
+                printf("User entered 2. Filename to process: [%s]\n", fileNameToProcess);
             }
 
             // User wishes to enter file name
@@ -312,11 +312,14 @@ int main()
             /*
             File Processing
             */
-
+            printf("About to process the file.\n");
             struct movie *list = processFile(fileNameToProcess);
+            printf("Processed the file\n");
             // Permanent pointer to the head of the linked list
             struct movie *listHead = list;
             list = listHead;
+
+            printf("Processed file.\n");
 
             srand(time(NULL));
             int r;
@@ -336,6 +339,8 @@ int main()
             mkdir(dirpath, S_IRWXU | S_IRGRP | S_IXGRP);
             printf("Created directory with name %s\n", dirname);
             printf("Full directory path: %s\n", dirpath);
+
+            printf("Created directory\n");
 
             /* Creating and writing files for each year */
 
@@ -366,7 +371,6 @@ int main()
                 moviesCounter = 0;
                 close(yearFile);
             }
-            free(lineEntered);
         }
 
         // User selected 2 at the main menu
