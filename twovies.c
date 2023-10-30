@@ -62,7 +62,6 @@ struct movie *createMovie(char *currLine)
 // Creates a linked list of movie structs for each movie in the file
 struct movie *processFile(char *filePath)
 {
-    printf("Top of processFile\n");
     // Open the specified file for reading only
     FILE *movieFile = fopen(filePath, "r");
 
@@ -77,15 +76,12 @@ struct movie *processFile(char *filePath)
     struct movie *tail = NULL;
     int linesProcessed = 0;
 
-    printf("Before getline\n");
     // Read the file line by line
     while ((nread = getline(&currLine, &len, movieFile)) != -1)
     {
-        printf("Inside getline\n");
         if (linesProcessed != 0)
         {
             // Get a new movie node corresponding to the current line
-            printf("Calling createMovie\n");
             struct movie *newNode = createMovie(currLine);
             // Is this the first node in the linked list?
             if (head == NULL)
@@ -229,19 +225,13 @@ int main()
     {
         char *prompt = "\n1. Select file to process\n2. Exit the program\n\nEnter your selection: ";
         printf("%s", prompt);
-        char *lineEntered = NULL;
-        int numCharsEntered = -5;
-        int currChar = -5;
-        size_t bufferSize = 0;
+        char lineEntered[300];
         int ok = 0;
-        int c;
 
         // Loops until the correct input is given
         while (!ok)
         {
-            numCharsEntered = getline(&lineEntered, &bufferSize, stdin);
-            lineEntered[numCharsEntered - 1] = '\0';
-
+            scanf("%299[^\n]", lineEntered);
             if (lineEntered[0] >= 49 && lineEntered[0] <= 50 && strlen(lineEntered) == 1)
             {
                 printf("%s", "\n");
@@ -252,10 +242,12 @@ int main()
             {
                 printf("%s", "\nInvalid input.\nPlease enter a number from 1 to 2: ");
             }
+            int c;
+            while ((c = getchar()) != '\n' && c != EOF)
+            {
+            }
         }
         char selection = lineEntered[0];
-        free(lineEntered);
-        lineEntered = NULL;
 
         // User selected 1 at the main menu
         if (selection == 49)
@@ -267,13 +259,12 @@ int main()
             printf("Enter a selection from 1 to 3: ");
 
             // Reassigns lineEntered
-            char *lineEntered = NULL;
+            char lineEntered[300];
             // Input validation
             ok = 0;
             while (!ok)
             {
-                numCharsEntered = getline(&lineEntered, &bufferSize, stdin);
-                lineEntered[numCharsEntered - 1] = '\0';
+                scanf("%299[^\n]", lineEntered);
 
                 if (lineEntered[0] >= 49 && lineEntered[0] <= 51 && strlen(lineEntered) == 1)
                 {
@@ -285,11 +276,12 @@ int main()
                 {
                     printf("%s", "\nInvalid input.\nPlease enter a number from 1 to 3: ");
                 }
+                int c;
+                while ((c = getchar()) != '\n' && c != EOF)
+                {
+                }
             }
             selection = lineEntered[0];
-            free(lineEntered);
-            lineEntered = NULL;
-            bufferSize = 0;
 
             // The file name to process
             char *fileNameToProcess;
@@ -317,7 +309,6 @@ int main()
             /*
             File Processing
             */
-            printf("About to process the file.\n");
             struct movie *list = processFile(fileNameToProcess);
             printf("Processed the file\n");
             // Permanent pointer to the head of the linked list
@@ -353,6 +344,7 @@ int main()
             int moviesCounter = 0;
             for (currYear = 1900; currYear <= 2023; currYear++)
             {
+                printf("currYear: %d\n", currYear);
                 int yearFile;
                 while (list != NULL)
                 {
@@ -362,12 +354,16 @@ int main()
                         {
                             char newFilePath[200];
                             sprintf(newFilePath, "%s/%d.txt", dirpath, currYear);
+                            printf("Creating year file\n");
                             yearFile = open(newFilePath, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP);
+                            printf("Created year file\n");
                         }
                         char titleToWrite[100];
                         strcpy(titleToWrite, list->title);
                         strcat(titleToWrite, "\n");
+                        printf("About to write title: %s", titleToWrite);
                         write(yearFile, titleToWrite, strlen(titleToWrite) * sizeof(char));
+                        printf("Wrote title: %s", titleToWrite);
                         moviesCounter++;
                     }
                     list = list->next;
@@ -376,6 +372,7 @@ int main()
                 moviesCounter = 0;
                 close(yearFile);
             }
+            printf("Made it to the bottom!\n");
         }
 
         // User selected 2 at the main menu
