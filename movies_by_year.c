@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -196,7 +197,28 @@ int main()
             {
                 printf("User entered 3. Exiting.\n");
             }
-            /* File Processing */
+
+            /*
+            File Processing
+            */
+
+            srand(time(NULL));
+            int r;
+            r = rand();
+            if (r > 100000)
+            {
+                r = r % 100000;
+            }
+            else if (r == 100000)
+            {
+                r = r - 1;
+            }
+            char *dirname;
+            sprintf(dirname, "newmangr.movies.%d", r);
+            char dirpath[200] = "/nfs/stak/users/newmangr/os1/newmangr.movies.";
+            sprintf(dirpath, "%s%d", dirpath, r);
+            mkdir(dirpath, S_IRWXU | S_IRGRP | S_IXGRP);
+            printf("Created directory with name %s\n", dirname);
         }
 
         // User selected 2 at the main menu
