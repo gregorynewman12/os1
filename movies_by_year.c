@@ -5,6 +5,107 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+// Movie struct, same as assignment #1
+struct movie
+{
+    char *title;
+    int year;
+    char *languages;
+    float rating;
+    struct movie *next;
+};
+
+// Creates a struct for an individual movie
+struct movie *createMovie(char *currLine)
+{
+    // Pointer to hold current movie being created
+    struct movie *currMovie = malloc(sizeof(struct movie));
+
+    // Keeps track of where in the string the "cursor" is
+    char *saveptr;
+
+    // Tokenizes and saves title
+    char *token = strtok_r(currLine, ",", &saveptr);
+    // calloc takes two arguments: the number of blocks to allocate
+    // and the size of each block. Here it allocates enough char-sized
+    // blocks to hold all the chars and the null terminator.
+    currMovie->title = calloc(strlen(token) + 1, sizeof(char));
+    strcpy(currMovie->title, token);
+
+    // Tokenizes and saves year
+    token = strtok_r(NULL, ",", &saveptr);
+    currMovie->year = atoi(token);
+
+    // Tokenizes and saves languages
+    token = strtok_r(NULL, ",", &saveptr);
+    char *languages = token;
+    // Trims the leading "["
+    languages = &languages[1];
+    // Trims the tailing "]"
+    languages[strlen(languages) - 1] = '\0';
+    currMovie->languages = calloc(strlen(token) + 1, sizeof(char));
+    strcpy(currMovie->languages, languages);
+
+    // Tokenizes and saves rating
+    token = strtok_r(NULL, ",", &saveptr);
+    currMovie->rating = atof(token);
+
+    // Set next node to NULL
+    currMovie->next == NULL;
+
+    return currMovie;
+}
+
+// Creates a linked list of movie structs for each movie in the file
+struct movie *processFile(char *filePath)
+{
+    // Open the specified file for reading only
+    FILE *movieFile = fopen(filePath, "r");
+
+    char *currLine = NULL;
+    size_t len = 0;
+    size_t nread;
+    char *token;
+
+    // The head of the linked list
+    struct movie *head = NULL;
+    // The tail of the linked list
+    struct movie *tail = NULL;
+    int linesProcessed = 0;
+
+    // Read the file line by line
+    while ((nread = getline(&currLine, &len, movieFile)) != -1)
+    {
+        if (linesProcessed != 0)
+        {
+            // Get a new movie node corresponding to the current line
+            struct movie *newNode = createMovie(currLine);
+            // Is this the first node in the linked list?
+            if (head == NULL)
+            {
+                // This is the first node in the linked list
+                // Set the head and the tail to this node
+                head = newNode;
+                tail = newNode;
+            }
+            else
+            {
+                // This is not the first node.
+                // Add this node to the list and advance the tail
+                tail->next = newNode;
+                tail = newNode;
+            }
+        }
+        linesProcessed++;
+    }
+    printf("\nProcessed file %s and parsed data for %d movies\n", filePath, linesProcessed - 1);
+    free(currLine);
+    fclose(movieFile);
+    return head;
+}
 
 // Function to find the name of the largest .csv file in the directory
 char *findLargestCSV()
@@ -108,7 +209,7 @@ char *findSmallestCSV()
     }
 
     closedir(directory);
-    printf("Largest file is %s at %ld bytes\n", smallestFileName, minFileSize);
+    printf("Smallest file is %s at %ld bytes\n", smallestFileName, minFileSize);
     return smallestFileName;
 }
 
@@ -121,6 +222,8 @@ int main()
     // Loops the main program indefinitely
     while (!mainMenu)
     {
+        printf("At the top of the menu.\n");
+        sleep(2);
         char *prompt = "\n1. Select file to process\n2. Exit the program\n\nEnter your selection: ";
         printf("%s", prompt);
         char *lineEntered = NULL;
@@ -128,6 +231,8 @@ int main()
         int currChar = -5;
         size_t bufferSize = 0;
         int ok = 0;
+        // printf("Right before loop. lineEntered = %s.\n", lineEntered);
+        // sleep(2);
 
         // Loops until the correct input is given
         while (!ok)
@@ -144,8 +249,11 @@ int main()
             {
                 printf("%s", "\nInvalid input.\nPlease enter a number from 1 to 2: ");
             }
+            // printf("Bottom of while loop. lineEntered = %s.\n", lineEntered);
+            // sleep(2);
         }
         char selection = lineEntered[0];
+        lineEntered = NULL;
 
         // User selected 1 at the main menu
         if (selection == 49)
@@ -156,6 +264,8 @@ int main()
             printf("Enter 3 to specify the name of a file.\n\n");
             printf("Enter a selection from 1 to 3: ");
 
+            // Reassigns lineEntered
+            char *lineEntered = NULL;
             // Input validation
             ok = 0;
             while (!ok)
@@ -174,26 +284,27 @@ int main()
                 }
             }
             selection = lineEntered[0];
+            lineEntered = NULL;
 
             // The file name to process
             char *fileNameToProcess;
 
             // User wishes to process largest file
-            if (*lineEntered == 49)
+            if (selection == 49)
             {
                 fileNameToProcess = findLargestCSV();
-                printf("User entered 1. Exiting.\n");
+                printf("User entered 1.\n");
             }
 
             // User wishes to process smallest file
-            else if (*lineEntered == 50)
+            else if (selection == 50)
             {
                 fileNameToProcess = findSmallestCSV();
                 printf("User entered 2. Exiting.\n");
             }
 
             // User wishes to enter file name
-            else if (*lineEntered == 51)
+            else if (selection == 51)
             {
                 printf("User entered 3. Exiting.\n");
             }
@@ -201,6 +312,11 @@ int main()
             /*
             File Processing
             */
+
+            struct movie *list = processFile(fileNameToProcess);
+            // Permanent pointer to the head of the linked list
+            struct movie *listHead = list;
+            list = listHead;
 
             srand(time(NULL));
             int r;
@@ -213,12 +329,44 @@ int main()
             {
                 r = r - 1;
             }
-            char *dirname;
+            char dirname[100];
             sprintf(dirname, "newmangr.movies.%d", r);
             char dirpath[200] = "/nfs/stak/users/newmangr/os1/newmangr.movies.";
             sprintf(dirpath, "%s%d", dirpath, r);
             mkdir(dirpath, S_IRWXU | S_IRGRP | S_IXGRP);
             printf("Created directory with name %s\n", dirname);
+            printf("Full directory path: %s\n", dirpath);
+
+            /* Creating and writing files for each year */
+
+            int currYear;
+            int moviesCounter = 0;
+            for (currYear = 1900; currYear <= 2023; currYear++)
+            {
+                int yearFile;
+                while (list != NULL)
+                {
+                    if (list->year == currYear)
+                    {
+                        if (moviesCounter == 0)
+                        {
+                            char newFilePath[200];
+                            sprintf(newFilePath, "%s/%d.txt", dirpath, currYear);
+                            yearFile = open(newFilePath, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP);
+                        }
+                        char titleToWrite[100];
+                        strcpy(titleToWrite, list->title);
+                        strcat(titleToWrite, "\n");
+                        write(yearFile, titleToWrite, strlen(titleToWrite) * sizeof(char));
+                        moviesCounter++;
+                    }
+                    list = list->next;
+                }
+                list = listHead;
+                moviesCounter = 0;
+                close(yearFile);
+            }
+            free(lineEntered);
         }
 
         // User selected 2 at the main menu
