@@ -9,6 +9,7 @@
 #include <unistd.h>
 
 // Movie struct, same as assignment #1
+// Movie struct, same as assignment #1
 struct movie
 {
     char *title;
@@ -101,13 +102,16 @@ struct movie *processFile(char *filePath)
         }
         linesProcessed++;
     }
-    printf("\nProcessed file %s and parsed data for %d movies\n", filePath, linesProcessed - 1);
     free(currLine);
+    currLine = NULL;
     fclose(movieFile);
     return head;
 }
 
 int main()
 {
-    struct movie *list = processFile("smallestone.csv");
+    struct movie *list = processFile("csv3.csv");
+    printf("File Processed successfully\n");
+
+    return 0;
 }

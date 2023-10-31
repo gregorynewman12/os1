@@ -62,14 +62,12 @@ struct movie *createMovie(char *currLine)
 // Creates a linked list of movie structs for each movie in the file
 struct movie *processFile(char *filePath)
 {
-    printf("Top of processFile\n");
     // Open the specified file for reading only
     FILE *movieFile = fopen(filePath, "r");
 
     char *currLine = NULL;
     size_t len = 0;
     size_t nread;
-    char *token;
 
     // The head of the linked list
     struct movie *head = NULL;
@@ -77,15 +75,12 @@ struct movie *processFile(char *filePath)
     struct movie *tail = NULL;
     int linesProcessed = 0;
 
-    printf("Before getline\n");
     // Read the file line by line
     while ((nread = getline(&currLine, &len, movieFile)) != -1)
     {
-        printf("Inside getline\n");
         if (linesProcessed != 0)
         {
             // Get a new movie node corresponding to the current line
-            printf("Calling createMovie\n");
             struct movie *newNode = createMovie(currLine);
             // Is this the first node in the linked list?
             if (head == NULL)
@@ -105,7 +100,6 @@ struct movie *processFile(char *filePath)
         }
         linesProcessed++;
     }
-    printf("getline was successful\n");
     free(currLine);
     currLine = NULL;
     fclose(movieFile);
@@ -113,7 +107,7 @@ struct movie *processFile(char *filePath)
 }
 
 // Function to find the name of the largest .csv file in the directory
-char *findLargestCSV()
+char *getLargestCSV()
 {
     DIR *directory;
     struct dirent *entry;
@@ -161,12 +155,12 @@ char *findLargestCSV()
     }
 
     closedir(directory);
-    printf("Largest file is %s at %ld bytes\n", largestFileName, maxFileSize);
+    printf("Now processing the largest file [%s] at %ld bytes\n", largestFileName, maxFileSize);
     return largestFileName;
 }
 
 // Function to find the name of the smallest .csv file in the directory
-char *findSmallestCSV()
+char *getSmallestCSV()
 {
     DIR *directory;
     struct dirent *entry;
@@ -214,10 +208,166 @@ char *findSmallestCSV()
     }
 
     closedir(directory);
-    printf("Smallest file is %s at %ld bytes\n", smallestFileName, minFileSize);
+    printf("Now processing the smallest file [%s] at %ld bytes\n", smallestFileName, minFileSize);
     return smallestFileName;
 }
 
+// Function for allowing user to enter a file name
+char *getFileNameToRead()
+{
+    char *nameToRead = malloc(sizeof(char) * 400);
+    char lineEntered[300];
+    char *prompt = "Enter the complete file name: ";
+    printf("%s", prompt);
+    // Input Validation
+    int ok = 0;
+    // Loops until user enters a string that matches a file in the directory.
+    while (!ok)
+    {
+        // Gets user input
+        scanf("%299[^\n]", lineEntered);
+        FILE *file;
+        // File exists
+        if (file = fopen(lineEntered, "r"))
+        {
+            fclose(file);
+            ok = 1;
+            nameToRead = lineEntered;
+        }
+
+        // File doesn't exist
+        else
+        {
+            printf("File not found. Enter the name of the file: ");
+        }
+        int c;
+        while ((c = getchar()) != '\n' && c != EOF)
+        {
+        }
+    }
+    printf("Name to read is: [%s] with length %ld\n", nameToRead, strlen(nameToRead));
+
+    return nameToRead;
+}
+
+// Main loop of the program
+void mainLoop()
+{
+    printf("Which file would you like to process?\n");
+    printf("Enter 1 to pick the largest file.\n");
+    printf("Enter 2 to pick the smallest file.\n");
+    printf("Enter 3 to specify the name of a file.\n\n");
+    printf("Enter a selection from 1 to 3: ");
+
+    // Reassigns lineEntered
+    char lineEntered[300];
+    // Input validation
+    int ok = 0;
+    while (!ok)
+    {
+        scanf("%299[^\n]", lineEntered);
+
+        if (lineEntered[0] >= 49 && lineEntered[0] <= 51 && strlen(lineEntered) == 1)
+        {
+            printf("\n");
+            ok = 1;
+        }
+
+        else
+        {
+            printf("%s", "\nInvalid input.\nPlease enter a number from 1 to 3: ");
+        }
+        int c;
+        while ((c = getchar()) != '\n' && c != EOF)
+        {
+        }
+    }
+    int selection = lineEntered[0];
+
+    // The file name to process
+    char *fileNameToProcess = malloc(sizeof(char) * 400);
+
+    // User wishes to process largest file
+    if (selection == 49)
+    {
+        fileNameToProcess = getLargestCSV();
+    }
+
+    // User wishes to process smallest file
+    else if (selection == 50)
+    {
+        fileNameToProcess = getSmallestCSV();
+    }
+
+    // User wishes to enter file name
+    else if (selection == 51)
+    {
+        fileNameToProcess = getFileNameToRead();
+    }
+
+    /*
+    File Processing
+    */
+    struct movie *list = processFile(fileNameToProcess);
+    // Permanent pointer to the head of the linked list
+    struct movie *listHead = list;
+    list = listHead;
+
+    srand(time(NULL));
+    int r;
+    r = rand();
+    if (r > 100000)
+    {
+        r = r % 100000;
+    }
+    else if (r == 100000)
+    {
+        r = r - 1;
+    }
+    char dirname[100];
+    sprintf(dirname, "newmangr.movies.%d", r);
+    char dirpath[200] = "/nfs/stak/users/newmangr/os1/newmangr.movies.";
+    sprintf(dirpath, "%s%d", dirpath, r);
+    mkdir(dirpath, S_IRWXU | S_IRGRP | S_IXGRP);
+    printf("Created directory with name %s\n", dirname);
+
+    /* Creating and writing files for each year */
+
+    int currYear;
+    int moviesCounter = 0;
+    for (currYear = 1900; currYear <= 2023; currYear++)
+    {
+        int yearFile;
+        while (list != NULL)
+        {
+            if (list->year == currYear)
+            {
+                if (moviesCounter == 0)
+                {
+                    char newFilePath[200];
+                    sprintf(newFilePath, "%s/%d.txt", dirpath, currYear);
+                    yearFile = open(newFilePath, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP);
+                    if (yearFile < 0)
+                    {
+                        fprintf(stderr, "Could not open %s\n", newFilePath);
+                        exit(1);
+                    }
+                }
+                char titleToWrite[100];
+                strcpy(titleToWrite, list->title);
+                strcat(titleToWrite, "\n");
+                write(yearFile, titleToWrite, strlen(titleToWrite) * sizeof(char));
+                moviesCounter++;
+            }
+            list = list->next;
+        }
+        list = listHead;
+        moviesCounter = 0;
+        close(yearFile);
+    }
+}
+
+// Main function
 int main()
 {
     /*
@@ -229,19 +379,13 @@ int main()
     {
         char *prompt = "\n1. Select file to process\n2. Exit the program\n\nEnter your selection: ";
         printf("%s", prompt);
-        char *lineEntered = NULL;
-        int numCharsEntered = -5;
-        int currChar = -5;
-        size_t bufferSize = 0;
+        char lineEntered[300];
         int ok = 0;
-        int c;
 
         // Loops until the correct input is given
         while (!ok)
         {
-            numCharsEntered = getline(&lineEntered, &bufferSize, stdin);
-            lineEntered[numCharsEntered - 1] = '\0';
-
+            scanf("%299[^\n]", lineEntered);
             if (lineEntered[0] >= 49 && lineEntered[0] <= 50 && strlen(lineEntered) == 1)
             {
                 printf("%s", "\n");
@@ -252,136 +396,23 @@ int main()
             {
                 printf("%s", "\nInvalid input.\nPlease enter a number from 1 to 2: ");
             }
+            int c;
+            while ((c = getchar()) != '\n' && c != EOF)
+            {
+            }
         }
         char selection = lineEntered[0];
-        free(lineEntered);
-        lineEntered = NULL;
 
         // User selected 1 at the main menu
         if (selection == 49)
         {
-            printf("Which file would you like to process?\n");
-            printf("Enter 1 to pick the largest file.\n");
-            printf("Enter 2 to pick the smallest file.\n");
-            printf("Enter 3 to specify the name of a file.\n\n");
-            printf("Enter a selection from 1 to 3: ");
-
-            // Reassigns lineEntered
-            char *lineEntered = NULL;
-            // Input validation
-            ok = 0;
-            while (!ok)
-            {
-                numCharsEntered = getline(&lineEntered, &bufferSize, stdin);
-                lineEntered[numCharsEntered - 1] = '\0';
-
-                if (lineEntered[0] >= 49 && lineEntered[0] <= 51 && strlen(lineEntered) == 1)
-                {
-                    printf("\n");
-                    ok = 1;
-                }
-
-                else
-                {
-                    printf("%s", "\nInvalid input.\nPlease enter a number from 1 to 3: ");
-                }
-            }
-            selection = lineEntered[0];
-            free(lineEntered);
-            lineEntered = NULL;
-            bufferSize = 0;
-
-            // The file name to process
-            char *fileNameToProcess;
-
-            // User wishes to process largest file
-            if (selection == 49)
-            {
-                fileNameToProcess = findLargestCSV();
-                printf("User entered 1.\n");
-            }
-
-            // User wishes to process smallest file
-            else if (selection == 50)
-            {
-                fileNameToProcess = findSmallestCSV();
-                printf("User entered 2. Filename to process: [%s]\n", fileNameToProcess);
-            }
-
-            // User wishes to enter file name
-            else if (selection == 51)
-            {
-                printf("User entered 3. Exiting.\n");
-            }
-
-            /*
-            File Processing
-            */
-            printf("About to process the file.\n");
-            struct movie *list = processFile(fileNameToProcess);
-            printf("Processed the file\n");
-            // Permanent pointer to the head of the linked list
-            struct movie *listHead = list;
-            list = listHead;
-
-            printf("Processed file.\n");
-
-            srand(time(NULL));
-            int r;
-            r = rand();
-            if (r > 100000)
-            {
-                r = r % 100000;
-            }
-            else if (r == 100000)
-            {
-                r = r - 1;
-            }
-            char dirname[100];
-            sprintf(dirname, "newmangr.movies.%d", r);
-            char dirpath[200] = "/nfs/stak/users/newmangr/os1/newmangr.movies.";
-            sprintf(dirpath, "%s%d", dirpath, r);
-            mkdir(dirpath, S_IRWXU | S_IRGRP | S_IXGRP);
-            printf("Created directory with name %s\n", dirname);
-            printf("Full directory path: %s\n", dirpath);
-
-            printf("Created directory\n");
-
-            /* Creating and writing files for each year */
-
-            int currYear;
-            int moviesCounter = 0;
-            for (currYear = 1900; currYear <= 2023; currYear++)
-            {
-                int yearFile;
-                while (list != NULL)
-                {
-                    if (list->year == currYear)
-                    {
-                        if (moviesCounter == 0)
-                        {
-                            char newFilePath[200];
-                            sprintf(newFilePath, "%s/%d.txt", dirpath, currYear);
-                            yearFile = open(newFilePath, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP);
-                        }
-                        char titleToWrite[100];
-                        strcpy(titleToWrite, list->title);
-                        strcat(titleToWrite, "\n");
-                        write(yearFile, titleToWrite, strlen(titleToWrite) * sizeof(char));
-                        moviesCounter++;
-                    }
-                    list = list->next;
-                }
-                list = listHead;
-                moviesCounter = 0;
-                close(yearFile);
-            }
+            mainLoop();
         }
 
         // User selected 2 at the main menu
         else
         {
-            printf("Exiting program.\n\n\n");
+            printf("Exiting program.\n\n");
             mainMenu = 1;
         }
     }
