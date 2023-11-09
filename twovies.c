@@ -172,96 +172,88 @@ char *getSmallestCSV()
     return smallestFileName;
 }
 
-// Function for allowing user to enter a file name
-char *getFileNameToRead()
-{
-    char *lineEntered = malloc(300 * sizeof(char));
-    char *prompt = "Enter the complete file name: ";
-    printf("%s", prompt);
-    // Input Validation
-    int ok = 0;
-    // Loops until user enters a string that matches a file in the directory.
-    while (!ok)
-    {
-        // Gets user input
-        scanf("%s", lineEntered);
-        FILE *file;
-        // File exists
-        if (file = fopen(lineEntered, "r"))
-        {
-            fclose(file);
-            ok = 1;
-        }
-
-        // File doesn't exist
-        else
-        {
-            printf("File not found. Enter the name of the file: ");
-        }
-        int c;
-        while ((c = getchar()) != '\n' && c != EOF)
-        {
-        }
-    }
-    printf("Now processing the file named [%s]\n", lineEntered);
-
-    return lineEntered;
-}
-
 // Main loop of the program
 void mainLoop()
 {
-    printf("Which file would you like to process?\n");
-    printf("Enter 1 to pick the largest file.\n");
-    printf("Enter 2 to pick the smallest file.\n");
-    printf("Enter 3 to specify the name of a file.\n\n");
-    printf("Enter a selection from 1 to 3: ");
-
-    // Reassigns lineEntered
-    char lineEntered[300];
-    // Input validation
-    int ok = 0;
-    while (!ok)
-    {
-        scanf("%299[^\n]", lineEntered);
-
-        if (lineEntered[0] >= 49 && lineEntered[0] <= 51 && strlen(lineEntered) == 1)
-        {
-            printf("\n");
-            ok = 1;
-        }
-
-        else
-        {
-            printf("%s", "\nInvalid input.\nPlease enter a number from 1 to 3: ");
-        }
-        int c;
-        while ((c = getchar()) != '\n' && c != EOF)
-        {
-        }
-    }
-    int selection = lineEntered[0];
-
-    // The file name to process
+    // The file name to eventually process
     char *fileNameToProcess = malloc(sizeof(char) * 400);
-
-    // User wishes to process largest file
-    if (selection == 49)
+    int readyToProcess = 0;
+    while (!readyToProcess)
     {
-        fileNameToProcess = getLargestCSV();
-    }
+        printf("Which file would you like to process?\n");
+        printf("Enter 1 to pick the largest file.\n");
+        printf("Enter 2 to pick the smallest file.\n");
+        printf("Enter 3 to specify the name of a file.\n\n");
+        printf("Enter a selection from 1 to 3: ");
 
-    // User wishes to process smallest file
-    else if (selection == 50)
-    {
-        fileNameToProcess = getSmallestCSV();
-    }
+        // Reassigns lineEntered
+        char lineEntered[300];
+        // Input validation
+        int ok = 0;
+        while (!ok)
+        {
+            scanf("%299[^\n]", lineEntered);
 
-    // User wishes to enter file name
-    else if (selection == 51)
-    {
-        fileNameToProcess = getFileNameToRead();
-        fileNameToProcess[strlen(fileNameToProcess)] = '\0';
+            if (lineEntered[0] >= 49 && lineEntered[0] <= 51 && strlen(lineEntered) == 1)
+            {
+                printf("\n");
+                ok = 1;
+            }
+
+            else
+            {
+                printf("%s", "\nInvalid input.\nPlease enter a number from 1 to 3: ");
+            }
+            int c;
+            while ((c = getchar()) != '\n' && c != EOF)
+            {
+            }
+        }
+        int selection = lineEntered[0];
+
+        // User wishes to process largest file
+        if (selection == 49)
+        {
+            fileNameToProcess = getLargestCSV();
+            readyToProcess = 1;
+        }
+
+        // User wishes to process smallest file
+        else if (selection == 50)
+        {
+            fileNameToProcess = getSmallestCSV();
+            readyToProcess = 1;
+        }
+
+        // User wishes to enter file name
+        else if (selection == 51)
+        {
+            char *lineEntered = malloc(300 * sizeof(char));
+            char *prompt = "Enter the complete file name: ";
+            printf("%s", prompt);
+            // Input Validation
+            // Gets user input
+            scanf("%s", lineEntered);
+            FILE *file;
+            // File exists
+            if (file = fopen(lineEntered, "r"))
+            {
+                fclose(file);
+                fileNameToProcess = lineEntered;
+                printf("Now processing the file named [%s]\n", lineEntered);
+                readyToProcess = 1;
+            }
+
+            // File doesn't exist
+            else
+            {
+                printf("File not found.\n\n");
+            }
+            int c;
+            while ((c = getchar()) != '\n' && c != EOF)
+            {
+            }
+        }
     }
 
     /*
