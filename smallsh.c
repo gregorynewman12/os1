@@ -8,6 +8,7 @@ Author: Gregory Newman
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <sys/wait.h>
 
 // A linked list to contain command arguments
 struct arg
@@ -42,6 +43,7 @@ int main()
     int currChar = -5;
     size_t bufferSize = 0;
     int running = 1;
+    int exitStatusCode = -5; // Will store exit status code of last child process
     while (running)
     {
         printf(": ");
@@ -70,7 +72,7 @@ int main()
         /*
         This section separates the input into the needed information (command, args, etc)
         */
-        if (lineEntered[0] == ' ' || lineEntered[0] == '#')
+        if (lineEntered[0] == ' ' || lineEntered[0] == '#' || lineEntered[0] == '\0')
         {
             isCommentOrEmpty = 1;
         }
@@ -181,6 +183,7 @@ int main()
             token = strtok(NULL, " "); // Get the next token
         }
 
+        // Creates array of arguments entered
         struct arg *argsList = head;
 
         /*
@@ -250,12 +253,19 @@ int main()
         /*
         Running Commands section
         */
-        // Only moves on if the command was valid
 
-        if (!validCommand)
+        // Checks if it was a comment or empty
+        if (isCommentOrEmpty)
+        {
+            printf("No command was entered (comment or empty)\n", command[0]);
+        }
+
+        // Checks if command was valid
+        else if (!validCommand)
         {
             printf("Invalid command.\n");
         }
+        // Valid command. Will process
         else
         {
             char *cd = "cd";
@@ -265,6 +275,7 @@ int main()
             // Command is cd
             if (strcmp(command, cd) == 0)
             {
+                char cwd[256];
                 // First makes sure it has no input or output file
                 if (hasInputFile || hasOutputFile)
                 {
@@ -274,12 +285,22 @@ int main()
                 // 0 arguments (will change directory to $HOME)
                 else if (numOfArguments == 0)
                 {
-                    printf("Changing directory to $HOME.\n");
+                    int err = chdir(getenv("HOME"));
+                    if (err == -1)
+                    {
+                        printf("Error: Invalid path\n");
+                    }
+                    printf("Current directory: %s\n", getcwd(cwd, sizeof(cwd)));
                 }
                 // 1 argument (will attempt to change directory to specified path)
                 else if (numOfArguments == 1)
                 {
-                    printf("Changing directory to specified path.\n");
+                    int err = chdir(argsList->argument);
+                    if (err == -1)
+                    {
+                        printf("Error: Invalid path\n");
+                    }
+                    printf("Current directory: %s\n", getcwd(cwd, sizeof(cwd)));
                 }
                 // Invalid number of arguments
                 else
@@ -302,7 +323,14 @@ int main()
                 }
                 else
                 {
-                    printf("\nExecuting the status command.\n\n");
+                    if (exitStatusCode == -5)
+                    {
+                        printf("exit value 0\n");
+                    }
+                    else
+                    {
+                        printf("exit value %d\n", exitStatusCode);
+                    }
                 }
             }
 
@@ -320,7 +348,6 @@ int main()
                 }
                 else
                 {
-                    printf("\nExecuting the exit command.\n\n");
                     running = 0;
                 }
             }
@@ -328,7 +355,88 @@ int main()
             // Command is some other command
             else
             {
-                printf("External command. Attempting to run.\n");
+                int id = fork();
+
+                // Checks to make sure fork succeeded
+                if (id == -1)
+                {
+                    printf("Fork failed.\n");
+                }
+
+                // Child process
+                else if (id == 0)
+                {
+                    // Creates array to hold arguments which will be passed into execvp
+                    // Size of array is enough to hold arguments AND command, and NULL pointer
+                    char *argsArray[numOfArguments + 2];
+                    int i;
+                    for (i = 0; i < numOfArguments + 2; i++)
+                    {
+                        // First value must be the command
+                        if (i == 0)
+                        {
+                            argsArray[i] = command;
+                        }
+                        // last argument needs to be NULL
+                        else if (i == numOfArguments + 1)
+                        {
+                            argsArray[i] = NULL;
+                        }
+                        //
+                        else
+                        {
+                            // No arguments were entered or there are no more arguments
+                            if (argsList != NULL)
+                            {
+                                argsArray[i] = argsList->argument;
+                                if (argsList->next != NULL)
+                                {
+                                    argsList = argsList->next;
+                                }
+                            }
+                        }
+                    }
+
+                    // Resets argsList back to the head of the linked list
+                    argsList = head;
+
+                    // Tries to execute the command
+                    int err;
+                    // If there is an input file
+                    if (hasInputFile && !hasOutputFile)
+                    {
+                    }
+                    // If there is an output file
+                    else if (hasOutputFile && !hasInputFile)
+                    {
+                    }
+                    else if (hasOutputFile && hasInputFile)
+                    {
+                    }
+                    else
+                    {
+                        // Tries to execute the command
+                        err = execvp(command, argsArray);
+                        if (err == -1)
+                        {
+                            return 1;
+                        }
+                    }
+                }
+                // Parent process
+                else
+                {
+                    int waitStatus;
+                    wait(&waitStatus);
+                    if (WIFEXITED(waitStatus))
+                    {
+                        exitStatusCode = WEXITSTATUS(waitStatus);
+                        if (exitStatusCode == 1)
+                        {
+                            printf("Failed: No such command or incorrect syntax.\n");
+                        }
+                    }
+                }
             }
         }
     }
