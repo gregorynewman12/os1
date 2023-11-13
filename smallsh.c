@@ -9,6 +9,7 @@ Author: Gregory Newman
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 
 // A linked list to contain command arguments
 struct arg
@@ -33,6 +34,41 @@ struct arg *createArg(char *argu)
     currArg->next == NULL;
 
     return currArg;
+}
+
+char *checkForVarExpansion(char *tokenVar, char *expVar)
+{
+    int i;
+    for (i = 0; i < strlen(tokenVar) - 1; i++)
+    {
+        if (tokenVar[i] == '$' && tokenVar[i + 1] == '$')
+        {
+            char newToken[2048];
+            char newTokenTail[2048];
+            memset(newToken, '\0', 2048);
+            memset(newTokenTail, '\0', 2048);
+            int j;
+            int k = 0; // Variable to follow the insert location in newTokenTail
+            // Puts the part of the token AFTER "$$" into newTokenTail
+            for (j = i + 2; j <= strlen(tokenVar); j++)
+            {
+                newTokenTail[k] = tokenVar[j];
+                k++;
+            }
+            // Puts the part of the token BEFORE "$$" into newToken
+            for (j = 0; j < i; j++)
+            {
+                newToken[j] = tokenVar[j];
+            }
+            tokenVar[i] == '\0';
+            strcat(newToken, expVar);
+            strcat(newToken, newTokenTail);
+            tokenVar = newToken;
+            // Runs recursively to check the new token for additional "$$" substrings
+            tokenVar = checkForVarExpansion(tokenVar, expVar);
+        }
+    }
+    return tokenVar;
 }
 
 int main()
@@ -79,6 +115,10 @@ int main()
         char *token = strtok(lineEntered, " ");
         while (token != NULL)
         {
+            char pid[50];
+            int pidInt = getpid();
+            sprintf(pid, "%d", pidInt);
+            token = checkForVarExpansion(token, pid);
             // If this is the first token, it is the command. Also makes sure an input, output, or '&'
             // can't be entered before a command is specified.
             if (counter == 0 && token[0] != '<' && token[0] != '>' && token[0] != '&')
@@ -403,24 +443,34 @@ int main()
                     // Tries to execute the command
                     int err;
                     // If there is an input file
-                    if (hasInputFile && !hasOutputFile)
+                    if (hasInputFile)
                     {
-                    }
-                    // If there is an output file
-                    else if (hasOutputFile && !hasInputFile)
-                    {
-                    }
-                    else if (hasOutputFile && hasInputFile)
-                    {
-                    }
-                    else
-                    {
-                        // Tries to execute the command
-                        err = execvp(command, argsArray);
-                        if (err == -1)
+                        int iFile = open(inputFile, O_RDONLY);
+                        if (iFile == -1)
                         {
+                            printf("Failed to open/create the file.\n");
                             return 1;
                         }
+                        dup2(iFile, STDIN_FILENO);
+                        close(iFile);
+                    }
+                    // If there is an output file
+                    if (hasOutputFile)
+                    {
+                        int oFile = open(outputFile, O_WRONLY | O_TRUNC | O_CREAT, 0777);
+                        if (oFile == -1)
+                        {
+                            printf("Failed to open/create the file.\n");
+                            return 1;
+                        }
+                        dup2(oFile, STDOUT_FILENO);
+                        close(oFile);
+                    }
+                    // Tries to execute the command
+                    err = execvp(command, argsArray);
+                    if (err == -1)
+                    {
+                        return 1;
                     }
                 }
                 // Parent process
