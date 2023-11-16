@@ -37,6 +37,7 @@ struct arg *createArg(char *argu)
     return currArg;
 }
 
+// This function performs variable expansion on $$
 char *checkForVarExpansion(char *tokenVar, char *expVar)
 {
     int i;
@@ -72,6 +73,7 @@ char *checkForVarExpansion(char *tokenVar, char *expVar)
     return tokenVar;
 }
 
+// Variable and handler to control SIGTSTP signals
 int foregroundOnly = 0;
 void stopHandler(int signo)
 {
@@ -266,6 +268,7 @@ int main()
                 validCommand = 0;
             }
 
+            // If token is an ampersand and foreground only is disabled AND there are no additional tokens
             else if (token[0] == '&' && foregroundOnly == 0 && (token = strtok(NULL, " ")) == NULL)
             {
                 runInBackground = 1;
@@ -351,6 +354,7 @@ int main()
                 {
                     printf("Error. Status command takes no arguments.\n");
                 }
+                // If the last command terminated by signal
                 else
                 {
                     if (WTERMSIG(waitStatus))
@@ -473,6 +477,8 @@ int main()
                         close(oFile);
                     }
 
+                    // If there is no input file and it is to run in background,
+                    // redirects stdin to null
                     if (!hasInputFile && runInBackground)
                     {
                         int iFile = open("/dev/null", O_RDONLY);
@@ -486,6 +492,8 @@ int main()
                         close(iFile);
                     }
 
+                    // If there is no output file and it is to run in background,
+                    // redirects stdout to null
                     if (!hasOutputFile && runInBackground)
                     {
                         int oFile = open("/dev/null", O_WRONLY | O_TRUNC);
