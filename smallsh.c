@@ -7,6 +7,7 @@ Author: Gregory Newman
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <signal.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <fcntl.h>
@@ -73,16 +74,45 @@ char *checkForVarExpansion(char *tokenVar, char *expVar)
 
 int main()
 {
-    printf("Welcome to Gregory's shell!\n\n");
     char *lineEntered = NULL;
     int numCharsEntered = -5;
     int currChar = -5;
     size_t bufferSize = 0;
     int running = 1;
-    int exitStatusCode = -5; // Will store exit status code of last child process
+    int exitStatusCode = -5; // Will store exit status code of last foreground process
+    __pid_t *runningPIDs[64];
+    int i;
+    for (i = 0; i < (sizeof(runningPIDs) / sizeof(runningPIDs[0])); i++)
+    {
+        runningPIDs[i] = NULL;
+    }
+    // Initialize signal handling
+    struct sigaction SIGINT_handler = {0};
+    SIGINT_handler.sa_handler = sigint_handler;
+    SIGINT_handler.sa_flags = 0;
+
+    printf("Welcome to Gregory's shell!\n\n");
     while (running)
     {
+        // Checks if any background processes have terminated
+        int i;
+        for (i = 0; i < (sizeof(runningPIDs) / sizeof(runningPIDs[0])); i++)
+        {
+            int pStatus;
+            if (runningPIDs[i] != NULL)
+            {
+                int res = waitpid(*runningPIDs[i], &pStatus, WNOHANG);
+                if (res > 0)
+                {
+                    int eStatusCode = WEXITSTATUS(pStatus);
+                    printf("Background process %d is done. Exit status code %d\n", *runningPIDs[i], eStatusCode);
+                    fflush(stdout);
+                    runningPIDs[i] = NULL;
+                }
+            }
+        }
         printf(": ");
+        fflush(stdout);
         numCharsEntered = getline(&lineEntered, &bufferSize, stdin);
         lineEntered[numCharsEntered - 1] = '\0';
 
@@ -294,10 +324,9 @@ int main()
         Running Commands section
         */
 
-        // Checks if it was a comment or empty
+        // Checks if it was a comment or empty (do nothing)
         if (isCommentOrEmpty)
         {
-            printf("No command was entered (comment or empty)\n", command[0]);
         }
 
         // Checks if command was valid
@@ -366,10 +395,12 @@ int main()
                     if (exitStatusCode == -5)
                     {
                         printf("exit value 0\n");
+                        fflush(stdout);
                     }
                     else
                     {
                         printf("exit value %d\n", exitStatusCode);
+                        fflush(stdout);
                     }
                 }
             }
@@ -380,11 +411,13 @@ int main()
                 if (hasInputFile || hasOutputFile)
                 {
                     printf("Error. Redirection unsupported.\n");
+                    fflush(stdout);
                 }
 
                 else if (numOfArguments != 0)
                 {
                     printf("Error. Exit command takes no arguments.\n");
+                    fflush(stdout);
                 }
                 else
                 {
@@ -401,6 +434,7 @@ int main()
                 if (id == -1)
                 {
                     printf("Fork failed.\n");
+                    fflush(stdout);
                 }
 
                 // Child process
@@ -440,8 +474,6 @@ int main()
                     // Resets argsList back to the head of the linked list
                     argsList = head;
 
-                    // Tries to execute the command
-                    int err;
                     // If there is an input file
                     if (hasInputFile)
                     {
@@ -449,6 +481,7 @@ int main()
                         if (iFile == -1)
                         {
                             printf("Failed to open/create the file.\n");
+                            fflush(stdout);
                             return 1;
                         }
                         dup2(iFile, STDIN_FILENO);
@@ -461,12 +494,41 @@ int main()
                         if (oFile == -1)
                         {
                             printf("Failed to open/create the file.\n");
+                            fflush(stdout);
                             return 1;
                         }
                         dup2(oFile, STDOUT_FILENO);
                         close(oFile);
                     }
+
+                    if (!hasInputFile && runInBackground)
+                    {
+                        int iFile = open("/dev/null", O_RDONLY);
+                        if (iFile == -1)
+                        {
+                            printf("Failed to open/create the file.\n");
+                            fflush(stdout);
+                            return 1;
+                        }
+                        dup2(iFile, STDIN_FILENO);
+                        close(iFile);
+                    }
+
+                    if (!hasOutputFile && runInBackground)
+                    {
+                        int oFile = open("/dev/null", O_WRONLY | O_TRUNC);
+                        if (oFile == -1)
+                        {
+                            printf("Failed to open/create the file.\n");
+                            fflush(stdout);
+                            return 1;
+                        }
+                        dup2(oFile, STDOUT_FILENO);
+                        close(oFile);
+                    }
+
                     // Tries to execute the command
+                    int err;
                     err = execvp(command, argsArray);
                     if (err == -1)
                     {
@@ -476,14 +538,37 @@ int main()
                 // Parent process
                 else
                 {
-                    int waitStatus;
-                    wait(&waitStatus);
-                    if (WIFEXITED(waitStatus))
+                    // Foreground command
+                    if (!runInBackground)
                     {
-                        exitStatusCode = WEXITSTATUS(waitStatus);
-                        if (exitStatusCode == 1)
+                        int waitStatus;
+                        waitpid(id, &waitStatus, 0);
+                        if (WIFEXITED(waitStatus))
                         {
-                            printf("Failed: No such command or incorrect syntax.\n");
+                            exitStatusCode = WEXITSTATUS(waitStatus);
+                            if (exitStatusCode == 1)
+                            {
+                                printf("Failed: No such command or incorrect syntax.\n");
+                                fflush(stdout);
+                            }
+                        }
+                    }
+
+                    // Puts the process in the background
+                    else if (runInBackground)
+                    {
+                        int pidCounter = 0;
+                        int pidWritten = 0;
+                        while (!pidWritten)
+                        {
+                            if (runningPIDs[pidCounter] == NULL)
+                            {
+                                runningPIDs[pidCounter] = &id;
+                                pidWritten = 1;
+                                printf("Successfully wrote pid %d to the array\n", id);
+                                fflush(stdout);
+                            }
+                            pidCounter++;
                         }
                     }
                 }
