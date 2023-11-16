@@ -72,6 +72,23 @@ char *checkForVarExpansion(char *tokenVar, char *expVar)
     return tokenVar;
 }
 
+int foregroundOnly = 0;
+void stopHandler(int signo)
+{
+    char *enable = "Entering foreground only mode\n";
+    char *disable = "Exiting foreground only mode\n";
+    if (foregroundOnly == 0)
+    {
+        foregroundOnly = 1;
+        write(STDOUT_FILENO, enable, 30);
+    }
+    else if (foregroundOnly == 1)
+    {
+        foregroundOnly = 0;
+        write(STDOUT_FILENO, disable, 30);
+    }
+}
+
 int main()
 {
     char *lineEntered = NULL;
@@ -80,20 +97,25 @@ int main()
     size_t bufferSize = 0;
     int running = 1;
     int exitStatusCode = -5; // Will store exit status code of last foreground process
+    int waitStatus;
     __pid_t *runningPIDs[64];
     int i;
     for (i = 0; i < (sizeof(runningPIDs) / sizeof(runningPIDs[0])); i++)
     {
         runningPIDs[i] = NULL;
     }
+
     // Initialize signal handling
-    struct sigaction SIGINT_handler = {0};
-    SIGINT_handler.sa_handler = sigint_handler;
-    SIGINT_handler.sa_flags = 0;
+    signal(SIGINT, SIG_IGN);
+    struct sigaction stop_action = {0};
+    stop_action.sa_handler = stopHandler;
+    stop_action.sa_flags = 0;
+    sigaction(SIGTSTP, &stop_action, NULL);
 
     printf("Welcome to Gregory's shell!\n\n");
     while (running)
     {
+        fflush(stdout);
         // Checks if any background processes have terminated
         int i;
         for (i = 0; i < (sizeof(runningPIDs) / sizeof(runningPIDs[0])); i++)
@@ -101,7 +123,7 @@ int main()
             int pStatus;
             if (runningPIDs[i] != NULL)
             {
-                int res = waitpid(*runningPIDs[i], &pStatus, WNOHANG);
+                int res = waitpid(-1, &pStatus, WNOHANG);
                 if (res > 0)
                 {
                     int eStatusCode = WEXITSTATUS(pStatus);
@@ -244,7 +266,7 @@ int main()
                 validCommand = 0;
             }
 
-            else if (token[0] == '&')
+            else if (token[0] == '&' && foregroundOnly == 0 && (token = strtok(NULL, " ")) == NULL)
             {
                 runInBackground = 1;
                 noMoreArguments = 1;
@@ -256,67 +278,6 @@ int main()
         // Creates array of arguments entered
         struct arg *argsList = head;
 
-        /*
-        This section reports on the user's input
-
-        if (isCommentOrEmpty)
-        {
-            printf("No command was entered (comment or empty)\n", command[0]);
-        }
-        else if (!validCommand)
-        {
-            printf("Invalid command.\n");
-        }
-        else
-        {
-            printf("Command name: %s\n", command);
-            // Prints arguments, if any
-            if (numOfArguments == 0)
-            {
-                printf("There were no arguments entered.\n");
-            }
-            else
-            {
-                printf("Argument: %s\n", argsList->argument);
-                argsList = argsList->next;
-                while (argsList != NULL)
-                {
-                    printf("Argument: %s\n", argsList->argument);
-                    argsList = argsList->next;
-                }
-            }
-
-            // Reports whether an input file was provided
-            if (hasInputFile)
-            {
-                printf("Name of input file: %s\n", inputFile);
-            }
-            else
-            {
-                printf("No input file was provided.\n");
-            }
-
-            // Reports whether an output file was provided
-            if (hasOutputFile)
-            {
-                printf("Name of output file: %s\n", outputFile);
-            }
-            else
-            {
-                printf("No output file was provided.\n");
-            }
-
-            if (runInBackground)
-            {
-                printf("Run in background: True\n");
-            }
-            else
-            {
-                printf("Run in background: False\n");
-            }
-
-        }
-        */
         free(lineEntered);
         lineEntered = NULL;
 
@@ -392,7 +353,12 @@ int main()
                 }
                 else
                 {
-                    if (exitStatusCode == -5)
+                    if (WTERMSIG(waitStatus))
+                    {
+                        printf("terminated by signal 2\n");
+                        fflush(stdout);
+                    }
+                    else if (exitStatusCode == -5)
                     {
                         printf("exit value 0\n");
                         fflush(stdout);
@@ -440,6 +406,12 @@ int main()
                 // Child process
                 else if (id == 0)
                 {
+                    // All child processes must ignore SIGSTOP
+                    signal(SIGSTOP, SIG_IGN);
+                    if (!runInBackground)
+                    {
+                        signal(SIGINT, SIG_DFL);
+                    }
                     // Creates array to hold arguments which will be passed into execvp
                     // Size of array is enough to hold arguments AND command, and NULL pointer
                     char *argsArray[numOfArguments + 2];
@@ -541,9 +513,14 @@ int main()
                     // Foreground command
                     if (!runInBackground)
                     {
-                        int waitStatus;
+                        waitStatus;
                         waitpid(id, &waitStatus, 0);
-                        if (WIFEXITED(waitStatus))
+                        if (WTERMSIG(waitStatus))
+                        {
+                            printf("Terminated by signal 2\n");
+                            fflush(stdout);
+                        }
+                        else if (WIFEXITED(waitStatus))
                         {
                             exitStatusCode = WEXITSTATUS(waitStatus);
                             if (exitStatusCode == 1)
@@ -565,7 +542,7 @@ int main()
                             {
                                 runningPIDs[pidCounter] = &id;
                                 pidWritten = 1;
-                                printf("Successfully wrote pid %d to the array\n", id);
+                                printf("Background pid: %d\n", id);
                                 fflush(stdout);
                             }
                             pidCounter++;
