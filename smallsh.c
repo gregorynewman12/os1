@@ -100,11 +100,12 @@ int main()
     int running = 1;
     int exitStatusCode = -5; // Will store exit status code of last foreground process
     int waitStatus;
-    __pid_t *runningPIDs[64];
+    __pid_t runningPIDs[64]; // Array to store background PIDs
     int i;
+    // Sets initial values of the runningPIDs array to -5
     for (i = 0; i < (sizeof(runningPIDs) / sizeof(runningPIDs[0])); i++)
     {
-        runningPIDs[i] = NULL;
+        runningPIDs[i] = -5;
     }
 
     // Initialize signal handling
@@ -123,15 +124,15 @@ int main()
         for (i = 0; i < (sizeof(runningPIDs) / sizeof(runningPIDs[0])); i++)
         {
             int pStatus;
-            if (runningPIDs[i] != NULL)
+            if (runningPIDs[i] != -5)
             {
                 int res = waitpid(-1, &pStatus, WNOHANG);
                 if (res > 0)
                 {
                     int eStatusCode = WEXITSTATUS(pStatus);
-                    printf("Background process %d is done. Exit status code %d\n", *runningPIDs[i], eStatusCode);
+                    printf("Background process %d is done. Exit status code %d\n", runningPIDs[i], eStatusCode);
                     fflush(stdout);
-                    runningPIDs[i] = NULL;
+                    runningPIDs[i] = -5;
                 }
             }
         }
@@ -391,6 +392,22 @@ int main()
                 }
                 else
                 {
+                    // Kills any running background processes
+                    int i;
+                    for (i = 0; i < (sizeof(runningPIDs) / sizeof(runningPIDs[0])); i++)
+                    {
+                        // Found a PID
+                        if (runningPIDs[i] != -5)
+                        {
+                            int success = kill(runningPIDs[i], SIGTERM);
+                            if (success == 0)
+                            {
+                                printf("Killed background process %d\n", runningPIDs[i]);
+                            }
+                            // Sets that spot in the array back to -5
+                            runningPIDs[i] = -5;
+                        }
+                    }
                     running = 0;
                 }
             }
@@ -546,11 +563,11 @@ int main()
                         int pidWritten = 0;
                         while (!pidWritten)
                         {
-                            if (runningPIDs[pidCounter] == NULL)
+                            if (runningPIDs[pidCounter] == -5)
                             {
-                                runningPIDs[pidCounter] = &id;
+                                runningPIDs[pidCounter] = id;
                                 pidWritten = 1;
-                                printf("Background pid: %d\n", id);
+                                printf("Background PID: %d\n", id);
                                 fflush(stdout);
                             }
                             pidCounter++;
