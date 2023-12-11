@@ -72,7 +72,7 @@ struct student *processFile(char *filePath)
     struct student *tail = NULL;
 
     // Read the file line by line
-    while ((nread = getline(&currLine, &len, studentFile)) != -1)
+    while ((getline(&currLine, &len, studentFile)) != -1)
     {
         // Get a new student node corresponding to the current line
         struct student *newNode = createStudent(currLine);
@@ -137,5 +137,6 @@ int main(int argc, char *argv[])
     }
     struct student *list = processFile(argv[1]);
     printStudentList(list);
+    free(list);
     return EXIT_SUCCESS;
 }

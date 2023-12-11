@@ -74,7 +74,7 @@ struct movie *processFile(char *filePath)
     int linesProcessed = 0;
 
     // Read the file line by line
-    while ((nread = getline(&currLine, &len, movieFile)) != -1)
+    while ((getline(&currLine, &len, movieFile)) != -1)
     {
         if (linesProcessed != 0)
         {
