@@ -7,6 +7,12 @@
 #include <netinet/in.h>
 #include <netdb.h>
 
+void writeError(char *message)
+{
+    fprintf(stderr, "%s", message);
+    exit(1);
+}
+
 int main(int argc, char *argv[])
 {
     int socketFD, portNumber, charsWritten, totalCharsWritten, charsRead, plaintextLength = 0, keyLength = 0;
@@ -26,16 +32,10 @@ int main(int argc, char *argv[])
 
     plaintext = fopen(plaintext_file_name, "r");
     if (plaintext == NULL)
-    {
-        fprintf(stderr, "ERROR: CLIENT: Error opening plaintext file.\n");
-        exit(1);
-    }
+        writeError("ERROR: CLIENT: Error opening plaintext file.\n");
     key = fopen(key_file_name, "r");
     if (key == NULL)
-    {
-        fprintf(stderr, "ERROR: CLIENT: Error opening key file.\n");
-        exit(1);
-    }
+        writeError("ERROR: CLIENT: Error opening key file.\n");
 
     int i;
     // Reads number of chars in key file
@@ -43,12 +43,9 @@ int main(int argc, char *argv[])
     {
         keyLength += 1;
         if (!(i >= 65 && i <= 90) && i != 32 && i != 10)
-        {
-            fprintf(stderr, "ERROR: CLIENT: Invalid characters in key.\n");
-            exit(1);
-        }
+            writeError("ERROR: CLIENT: Invalid characters in key.\n");
     }
-    fclose(key);
+    rewind(key);
     // Reads number of chars in plaintext file
     for (i = getc(plaintext); i != EOF; i = getc(plaintext))
     {
@@ -59,15 +56,10 @@ int main(int argc, char *argv[])
             exit(1);
         }
     }
-    fclose(plaintext);
+    rewind(plaintext);
 
     if (keyLength < plaintextLength)
-    {
-        fprintf(stderr, "ERROR: Key too short.\n");
-        exit(1);
-    }
-    plaintext = fopen(plaintext_file_name, "r"); // Reopens plaintext
-    key = fopen(key_file_name, "r");             // Reopens key
+        writeError("ERROR: Key too short.\n");
 
     // Set up the server address struct
     memset((char *)&serverAddress, '\0', sizeof(serverAddress)); // Clear out the address struct
@@ -75,53 +67,91 @@ int main(int argc, char *argv[])
     serverAddress.sin_port = htons(portNumber);                  // Store the port number
     serverHostInfo = gethostbyname("localhost");                 // Convert the machine name into a special form of address
     if (serverHostInfo == NULL)
-    {
-        fprintf(stderr, "CLIENT: ERROR, no such host\n");
-        exit(0);
-    }
+        writeError("CLIENT: ERROR, no such host\n");
     memcpy((char *)&serverAddress.sin_addr.s_addr, (char *)serverHostInfo->h_addr, serverHostInfo->h_length);
     // Copy in the address
 
     // Set up the socket
     socketFD = socket(AF_INET, SOCK_STREAM, 0); // Create the socket
     if (socketFD < 0)
-    {
-        fprintf(stderr, "CLIENT: ERROR opening socket.\n");
-        exit(1);
-    }
+        writeError("CLIENT: ERROR opening socket.\n");
 
     // Connect to server
     if (connect(socketFD, (struct sockaddr *)&serverAddress, sizeof(serverAddress)) < 0) // Connect socket to addy
-    {
-        fprintf(stderr, "CLIENT: ERROR connecting to socket.\n");
-        exit(1);
-    }
+        writeError("CLIENT: ERROR connecting to socket.\n");
 
     // This section sends the plaintext to the server.
+    int exitIfTrue = 0;
     while (1)
     {
-        fgets(buffer, 255, plaintext);
+        fgets(buffer, 254, plaintext);
         if (strchr(buffer, '\n') != NULL) // If there is a newline found in the buffer, strip it and replace with null term
         {
             int newlineLocation = strchr(buffer, '\n') - buffer;
-            buffer[newlineLocation] = '\0';
+            buffer[newlineLocation] = '@';
+            buffer[newlineLocation + 1] = '@';
+            buffer[newlineLocation + 2] = '\0';
+            exitIfTrue = 1; // Found newline and will exit after sending this chunk
         }
         charsWritten = send(socketFD, buffer, strlen(buffer), 0); // Write to the server
         if (charsWritten < 0)
-        {
-            fprintf(stderr, "CLIENT: ERROR writing to socket.\n");
-            exit(1);
-        }
+            writeError("CLIENT: ERROR writing to buffer.");
         while (charsWritten < strlen(buffer) - 1)
         {
             char *resumeSendPoint = &buffer[charsWritten];
             int additionalWritten = send(socketFD, resumeSendPoint, strlen(buffer), 0); // Write more chars to the server
             charsWritten += additionalWritten;
         }
-        close(socketFD); // Close the socket
-        break;
+        // Send terminating indicator and exit
+        if (exitIfTrue)
+            break;
     }
-    printf("CLIENT: Exited while loop correctly.\n");
+    printf("Done sending plaintext.\n");
+
+    // Waits for confirmation that server received the plaintext
+    memset(buffer, '\0', sizeof(buffer));                      // Clear out the buffer again for reuse
+    charsRead = recv(socketFD, buffer, sizeof(buffer) - 1, 0); // Read data from the socket, leaving \0 at end
+    if (charsRead != 16)                                       // Expects message "message received"
+        writeError("CLIENT: ERROR reading from socket.");
+    printf("CLIENT: Server received plaintext\n");
+
+    // This section sends the key to the server.
+    exitIfTrue = 0;
+    while (1)
+    {
+        fgets(buffer, 254, key);
+        if (strchr(buffer, '\n') != NULL) // If there is a newline found in the buffer, strip it and replace with null term
+        {
+            int newlineLocation = strchr(buffer, '\n') - buffer;
+            buffer[newlineLocation] = '@';
+            buffer[newlineLocation + 1] = '@';
+            buffer[newlineLocation + 2] = '\0';
+            exitIfTrue = 1; // Found newline and will exit after sending this chunk
+        }
+        charsWritten = send(socketFD, buffer, strlen(buffer), 0); // Write to the server
+        if (charsWritten < 0)
+            writeError("CLIENT: ERROR writing to buffer.");
+        while (charsWritten < strlen(buffer) - 1)
+        {
+            char *resumeSendPoint = &buffer[charsWritten];
+            int additionalWritten = send(socketFD, resumeSendPoint, strlen(buffer), 0); // Write more chars to the server
+            charsWritten += additionalWritten;
+        }
+        if (exitIfTrue)
+            break;
+    }
+    printf("Done sending key.\n");
+
+    // Waits for confirmation that server received the key
+    memset(buffer, '\0', sizeof(buffer));                      // Clear out the buffer again for reuse
+    charsRead = recv(socketFD, buffer, sizeof(buffer) - 1, 0); // Read data from the socket, leaving \0 at end
+    if (charsRead != 12)                                       // Expects message "key received"
+        writeError("CLIENT: ERROR reading from socket.");
+    printf("CLIENT: Server received key\n");
+
+    fclose(plaintext);
+    fclose(key);
+    close(socketFD); // Close the socket
 
     /*
     charsWritten = send(socketFD, buffer, strlen(buffer), 0); // Write to the server

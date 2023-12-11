@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
                 int x = rand() % 27;
                 key[i] = validChars[x];
             }
-            key[keyLength + 1] = '\0';
+            key[keyLength] = '\0';
 
             printf("%s\n", key);
         }
@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
                     int x = rand() % 27;
                     key[i] = validChars[x];
                 }
-                key[chunkSize + 1] = '\0';
+                key[chunkSize] = '\0';
                 printf("%s", key);
             }
             printf("\n");

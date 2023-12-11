@@ -12,11 +12,40 @@ void error(const char *msg)
     exit(1);
 } // Error function used for reporting issues
 
+void encrypt(char *messageFile, char *keyFile)
+{
+    FILE *cipher, *message, *key;
+    char m, k, c, n = '\n';
+    char validChars[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', ' '};
+
+    cipher = fopen("cipher.txt", "w");
+    message = fopen(messageFile, "r");
+    key = fopen(keyFile, "r");
+
+    m = getc(message);
+    k = getc(key);
+    while (m != '\n')
+    {
+        c = validChars[(m + k) % 27];
+        printf("Writing encrypted character: %c\n", c);
+        fwrite(&c, sizeof(char), 1, cipher);
+        m = getc(message);
+        k = getc(key);
+    }
+    fwrite(&n, sizeof(char), 1, cipher);
+
+    fclose(cipher);
+    fclose(message);
+    fclose(key);
+}
+
 int main(int argc, char *argv[])
 {
     int listenSocketFD, establishedConnectionFD, portNumber, charsRead;
     socklen_t sizeOfClientInfo;
     char buffer[256];
+    char *messageReceivedFile = "messageReceived";
+    char *keyReceivedFile = "keyReceived";
     struct sockaddr_in serverAddress, clientAddress;
     if (argc < 2)
     {
@@ -39,22 +68,84 @@ int main(int argc, char *argv[])
     listen(listenSocketFD, 5); // Flip the socket on - it can now receive up to 5 connections
     while (1)
     {
+        FILE *receivedMessage, *receivedKey;
+
         // Accept a connection, blocking if one is not available until one connects
         sizeOfClientInfo = sizeof(clientAddress);                                                               // Get the size of the address for the client that will connect
         establishedConnectionFD = accept(listenSocketFD, (struct sockaddr *)&clientAddress, &sizeOfClientInfo); // Accept
         if (establishedConnectionFD < 0)
             error("ERROR on accept");
         printf("SERVER: Connected Client at port %d\n", ntohs(clientAddress.sin_port));
-        // Get the message from the client and display it
-        memset(buffer, '\0', 256);
-        charsRead = recv(establishedConnectionFD, buffer, 255, 0); // Read the client's message from the socket
-        if (charsRead < 0)
-            error("ERROR reading from socket");
-        printf("SERVER: I received this from the client: \"%s\"\n", buffer);
-        // Send a Success message back to the client
-        charsRead = send(establishedConnectionFD, "I am the server, and I got your message", 39, 0); // Send success back
-        if (charsRead < 0)
+
+        // Opens file to store received message
+        receivedMessage = fopen(messageReceivedFile, "w");
+
+        // Section to get the complete message
+        while (1)
+        {
+            memset(buffer, '\0', 256);
+            charsRead = recv(establishedConnectionFD, buffer, 255, 0); // Read the client's message from the socket
+            if (charsRead < 0)
+                error("ERROR reading from socket");
+            while (strstr(buffer, "@@") == NULL) // Keep reading if terminator not received
+            {
+                // Write what you got
+                fwrite(buffer, sizeof(char), strlen(buffer) - 1, receivedMessage);
+                // Read more chars
+                charsRead = recv(establishedConnectionFD, buffer, 255, 0); // Read the client's message from the socket
+                if (charsRead < 0)
+                    error("ERROR reading from socket");
+            }
+            int terminalLocation = strstr(buffer, "@@") - buffer; // Where is the terminal
+            buffer[terminalLocation] = '\n';
+            buffer[terminalLocation + 1] = '\0';
+            fwrite(buffer, sizeof(char), strlen(buffer), receivedMessage);
+            break;
+        }
+        fclose(receivedMessage);
+
+        // Sends message that server received message
+        char *confirmMessageReceived = "message received";
+        charsRead = send(establishedConnectionFD, confirmMessageReceived, strlen(confirmMessageReceived), 0); // Send success back
+        if (charsRead != strlen(confirmMessageReceived))
             error("ERROR writing to socket");
+
+        // Opens file to store received key
+        receivedKey = fopen(keyReceivedFile, "w");
+
+        // Section to get complete key
+        while (1)
+        {
+            memset(buffer, '\0', 256);
+            charsRead = recv(establishedConnectionFD, buffer, 255, 0); // Read the client's message from the socket
+            if (charsRead < 0)
+                error("ERROR reading from socket");
+            while (strstr(buffer, "@@") == NULL) // Keep reading if terminator not received
+            {
+                // Write what you got
+                fwrite(buffer, sizeof(char), strlen(buffer) - 1, receivedKey);
+                // Read more chars
+                charsRead = recv(establishedConnectionFD, buffer, 255, 0); // Read the client's message from the socket
+                if (charsRead < 0)
+                    error("ERROR reading from socket");
+            }
+            int terminalLocation = strstr(buffer, "@@") - buffer; // Where is the terminal
+            buffer[terminalLocation] = '\n';
+            buffer[terminalLocation + 1] = '\0';
+            fwrite(buffer, sizeof(char), strlen(buffer), receivedKey);
+            break;
+        }
+        fclose(receivedKey);
+
+        // Sends message that server received key
+        char *confirmKeyReceived = "key received";
+        charsRead = send(establishedConnectionFD, confirmKeyReceived, strlen(confirmKeyReceived), 0); // Send success back
+        if (charsRead != strlen(confirmKeyReceived))
+            error("ERROR writing to socket");
+
+        // PERFORMS THE ENCRYPTION
+        encrypt(messageReceivedFile, keyReceivedFile);
+
         close(establishedConnectionFD); // Close the existing socket which is connected to the client
     }
     close(listenSocketFD); // Close the listening socket
