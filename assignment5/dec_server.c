@@ -12,29 +12,44 @@ void writeError(char *message)
     exit(1);
 }
 
-void encrypt(char *messageFile, char *keyFile)
+void decrypt(char *cipherFile, char *keyFile, char *plainFile)
 {
-    FILE *cipher, *message, *key;
-    char m, k, c, n = '\n';
+    FILE *plain, *cipher, *key;
+    char p, k, c, n = '\n';
     char validChars[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', ' '};
 
-    cipher = fopen("cipher.txt", "w");
-    message = fopen(messageFile, "r");
+    int i;
+    plain = fopen(plainFile, "w");
+    cipher = fopen(cipherFile, "r");
     key = fopen(keyFile, "r");
 
-    m = getc(message);
+    c = getc(cipher);
     k = getc(key);
-    while (m != '\n')
+    while (c != '\n')
     {
-        c = validChars[(m + k) % 27];
-        fwrite(&c, sizeof(char), 1, cipher);
-        m = getc(message);
+        for (i = 0; i < 27; i++)
+        {
+            if (c == validChars[i])
+                c = i;
+        }
+        for (i = 0; i < 27; i++)
+        {
+            if (k == validChars[i])
+                k = i;
+        }
+        p = c - k;
+        while (p < 0)
+            p += 27;
+        p = p % 27;
+        p = validChars[p];
+        fwrite(&p, sizeof(char), 1, plain);
+        c = getc(cipher);
         k = getc(key);
     }
-    fwrite(&n, sizeof(char), 1, cipher);
+    fwrite(&n, sizeof(char), 1, plain);
 
+    fclose(plain);
     fclose(cipher);
-    fclose(message);
     fclose(key);
 }
 
@@ -43,9 +58,9 @@ int main(int argc, char *argv[])
     int listenSocketFD, establishedConnectionFD, portNumber, charsRead;
     socklen_t sizeOfClientInfo;
     char buffer[256];
-    char *messageReceivedFile = "receivedMessage";
+    char *ciphertextReceivedFile = "receivedCiphertext";
     char *keyReceivedFile = "receivedKey";
-    char *ciphertextFile = "cipher.txt";
+    char *plaintextFile = "plain.txt";
     struct sockaddr_in serverAddress, clientAddress;
     if (argc < 2)
     {
@@ -61,54 +76,54 @@ int main(int argc, char *argv[])
     // Set up the socket
     listenSocketFD = socket(AF_INET, SOCK_STREAM, 0); // Create the socket
     if (listenSocketFD < 0)
-        writeError("ERROR opening socket");
+        writeError("ERROR opening socket\n");
     // Enable the socket to begin listening
     if (bind(listenSocketFD, (struct sockaddr *)&serverAddress, sizeof(serverAddress)) < 0) // Connect socket to port
-        writeError("ERROR on binding");
+        writeError("ERROR on binding\n");
     listen(listenSocketFD, 5); // Flip the socket on - it can now receive up to 5 connections
     while (1)
     {
-        FILE *receivedMessage, *receivedKey, *cipher;
+        FILE *receivedCipher, *receivedKey, *plain;
 
         // Accept a connection, blocking if one is not available until one connects
         sizeOfClientInfo = sizeof(clientAddress);                                                               // Get the size of the address for the client that will connect
         establishedConnectionFD = accept(listenSocketFD, (struct sockaddr *)&clientAddress, &sizeOfClientInfo); // Accept
         if (establishedConnectionFD < 0)
-            writeError("ERROR on accept");
+            writeError("ERROR on accept\n");
         // printf("SERVER: Connected Client at port %d\n", ntohs(clientAddress.sin_port));
 
-        // Opens file to store received message
-        receivedMessage = fopen(messageReceivedFile, "w");
+        // Opens file to store received ciphertext
+        receivedCipher = fopen(ciphertextReceivedFile, "w");
 
-        // Section to get the complete message
+        // Section to get the complete ciphertext
         while (1)
         {
             memset(buffer, '\0', 256);
             charsRead = recv(establishedConnectionFD, buffer, 255, 0); // Read the client's message from the socket
             if (charsRead < 0)
-                writeError("ERROR reading from socket");
+                writeError("ERROR reading ciphertext from socket\n");
             while (strstr(buffer, "@@") == NULL) // Keep reading if terminator not received
             {
                 // Write what you got
-                fwrite(buffer, sizeof(char), strlen(buffer), receivedMessage);
+                fwrite(buffer, sizeof(char), strlen(buffer), receivedCipher);
                 // Read more chars
                 charsRead = recv(establishedConnectionFD, buffer, 255, 0); // Read the client's message from the socket
                 if (charsRead < 0)
-                    writeError("ERROR reading from socket");
+                    writeError("ERROR reading more ciphertext from socket\n");
             }
             int terminalLocation = strstr(buffer, "@@") - buffer; // Where is the terminal
             buffer[terminalLocation] = '\n';
             buffer[terminalLocation + 1] = '\0';
-            fwrite(buffer, sizeof(char), strlen(buffer), receivedMessage);
+            fwrite(buffer, sizeof(char), strlen(buffer), receivedCipher);
             break;
         }
-        fclose(receivedMessage);
+        fclose(receivedCipher);
 
         // Sends message that server received message
         char *confirmMessageReceived = "message received";
         charsRead = send(establishedConnectionFD, confirmMessageReceived, strlen(confirmMessageReceived), 0); // Send success back
         if (charsRead != strlen(confirmMessageReceived))
-            writeError("ERROR writing to socket");
+            writeError("ERROR writing to socket\n");
 
         // Opens file to store received key
         receivedKey = fopen(keyReceivedFile, "w");
@@ -119,7 +134,7 @@ int main(int argc, char *argv[])
             memset(buffer, '\0', 256);
             charsRead = recv(establishedConnectionFD, buffer, 255, 0); // Read the client's message from the socket
             if (charsRead < 0)
-                writeError("ERROR reading from socket");
+                writeError("ERROR reading key from socket\n");
             while (strstr(buffer, "@@") == NULL) // Keep reading if terminator not received
             {
                 // Write what you got
@@ -127,7 +142,7 @@ int main(int argc, char *argv[])
                 // Read more chars
                 charsRead = recv(establishedConnectionFD, buffer, 255, 0); // Read the client's message from the socket
                 if (charsRead < 0)
-                    writeError("ERROR reading from socket");
+                    writeError("ERROR reading more key from socket\n");
             }
             int terminalLocation = strstr(buffer, "@@") - buffer; // Where is the terminal
             buffer[terminalLocation] = '\n';
@@ -141,17 +156,17 @@ int main(int argc, char *argv[])
         char *confirmKeyReceived = "key received";
         charsRead = send(establishedConnectionFD, confirmKeyReceived, strlen(confirmKeyReceived), 0); // Send success back
         if (charsRead != strlen(confirmKeyReceived))
-            writeError("ERROR writing to socket");
+            writeError("ERROR writing to socket\n");
 
-        // PERFORMS THE ENCRYPTION
-        encrypt(messageReceivedFile, keyReceivedFile);
+        // PERFORMS THE DECRYPTION
+        decrypt(ciphertextReceivedFile, keyReceivedFile, plaintextFile);
 
-        // SENDS CIPHERTEXT
-        cipher = fopen(ciphertextFile, "r");
+        // SENDS PLAINTEXT
+        plain = fopen(plaintextFile, "r");
         int charsWritten, exitIfTrue = 0;
         while (1)
         {
-            fgets(buffer, 254, cipher);
+            fgets(buffer, 254, plain);
             if (strchr(buffer, '\n') != NULL) // If there is a newline found in the buffer, strip it and replace with null term
             {
                 int newlineLocation = strchr(buffer, '\n') - buffer;
@@ -162,7 +177,7 @@ int main(int argc, char *argv[])
             }
             charsWritten = send(establishedConnectionFD, buffer, strlen(buffer), 0); // Write to the server
             if (charsWritten < 0)
-                writeError("CLIENT: ERROR writing to buffer.");
+                writeError("CLIENT: ERROR writing to buffer.\n");
             while (charsWritten < strlen(buffer))
             {
                 char *resumeSendPoint = &buffer[charsWritten];

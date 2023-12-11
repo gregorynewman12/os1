@@ -15,24 +15,24 @@ void writeError(char *message)
 
 int main(int argc, char *argv[])
 {
-    int socketFD, portNumber, charsWritten, totalCharsWritten, charsRead, plaintextLength = 0, keyLength = 0;
-    FILE *plaintext, *key;
+    int socketFD, portNumber, charsWritten, totalCharsWritten, charsRead, ciphertextLength = 0, keyLength = 0;
+    FILE *ciphertext, *key;
     struct sockaddr_in serverAddress;
     struct hostent *serverHostInfo;
-    char buffer[256], plaintext_file_name[256], key_file_name[256];
+    char buffer[256], ciphertext_file_name[256], key_file_name[256];
     if (argc < 4)
     {
-        fprintf(stderr, "USAGE: %s plaintext_file_name key_file_name port_number\n", argv[0]);
+        fprintf(stderr, "USAGE: %s ciphertext_file_name key_file_name port_number\n", argv[0]);
         exit(0);
     } // Check usage & args
 
-    strlcpy(plaintext_file_name, argv[1], 255); // Copy plaintext file name
-    strlcpy(key_file_name, argv[2], 255);       // Copy key file name
-    portNumber = atoi(argv[3]);                 // Get the port number, convert to an integer from a string
+    strlcpy(ciphertext_file_name, argv[1], 255); // Copy ciphertext file name
+    strlcpy(key_file_name, argv[2], 255);        // Copy key file name
+    portNumber = atoi(argv[3]);                  // Get the port number, convert to an integer from a string
 
-    plaintext = fopen(plaintext_file_name, "r");
-    if (plaintext == NULL)
-        writeError("ERROR: CLIENT: Error opening plaintext file.\n");
+    ciphertext = fopen(ciphertext_file_name, "r");
+    if (ciphertext == NULL)
+        writeError("ERROR: CLIENT: Error opening ciphertext file.\n");
     key = fopen(key_file_name, "r");
     if (key == NULL)
         writeError("ERROR: CLIENT: Error opening key file.\n");
@@ -46,16 +46,16 @@ int main(int argc, char *argv[])
             writeError("ERROR: CLIENT: Invalid characters in key.\n");
     }
     rewind(key);
-    // Reads number of chars in plaintext file
-    for (i = getc(plaintext); i != EOF; i = getc(plaintext))
+    // Reads number of chars in ciphertext file
+    for (i = getc(ciphertext); i != EOF; i = getc(ciphertext))
     {
-        plaintextLength += 1;
+        ciphertextLength += 1;
         if (!(i >= 65 && i <= 90) && i != 32 && i != 10)
-            writeError("ERROR: CLIENT: Invalid characters in plaintext.\n");
+            writeError("ERROR: CLIENT: Invalid characters in ciphertext.\n");
     }
-    rewind(plaintext);
+    rewind(ciphertext);
 
-    if (keyLength < plaintextLength)
+    if (keyLength < ciphertextLength)
         writeError("ERROR: Key too short.\n");
 
     // Set up the server address struct
@@ -77,11 +77,11 @@ int main(int argc, char *argv[])
     if (connect(socketFD, (struct sockaddr *)&serverAddress, sizeof(serverAddress)) < 0) // Connect socket to addy
         writeError("CLIENT: ERROR connecting to socket.\n");
 
-    // This section sends the plaintext to the server.
+    // This section sends the ciphertext to the server.
     int exitIfTrue = 0;
     while (1)
     {
-        fgets(buffer, 254, plaintext);
+        fgets(buffer, 254, ciphertext);
         if (strchr(buffer, '\n') != NULL) // If there is a newline found in the buffer, strip it and replace with null term
         {
             int newlineLocation = strchr(buffer, '\n') - buffer;
@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
         }
         charsWritten = send(socketFD, buffer, strlen(buffer), 0); // Write to the server
         if (charsWritten < 0)
-            writeError("CLIENT: ERROR writing to buffer.");
+            writeError("CLIENT: ERROR writing to buffer.\n");
         while (charsWritten < strlen(buffer))
         {
             char *resumeSendPoint = &buffer[charsWritten];
@@ -104,12 +104,14 @@ int main(int argc, char *argv[])
             break;
     }
 
-    // Waits for confirmation that server received the plaintext
+    fclose(ciphertext);
+
+    // Waits for confirmation that server received the ciphertext
     memset(buffer, '\0', sizeof(buffer));                      // Clear out the buffer again for reuse
     charsRead = recv(socketFD, buffer, sizeof(buffer) - 1, 0); // Read data from the socket, leaving \0 at end
     if (charsRead != 16)                                       // Expects message "message received"
-        writeError("CLIENT: ERROR reading from socket.");
-    // printf("CLIENT: Server received plaintext\n");
+        writeError("CLIENT: ERROR reading from socket.\n");
+    // printf("CLIENT: Server received ciphertext\n");
 
     // This section sends the key to the server.
     exitIfTrue = 0;
@@ -128,7 +130,7 @@ int main(int argc, char *argv[])
         // printf("Sent %d characters\n", charsWritten);
         // printf("Data sent: %s\n", buffer);
         if (charsWritten < 0)
-            writeError("CLIENT: ERROR writing to buffer.");
+            writeError("CLIENT: ERROR writing to buffer.\n");
         while (charsWritten < strlen(buffer))
         {
             char *resumeSendPoint = &buffer[charsWritten];
@@ -144,10 +146,9 @@ int main(int argc, char *argv[])
     memset(buffer, '\0', sizeof(buffer));                      // Clear out the buffer again for reuse
     charsRead = recv(socketFD, buffer, sizeof(buffer) - 1, 0); // Read data from the socket, leaving \0 at end
     if (charsRead != 12)                                       // Expects message "key received"
-        writeError("CLIENT: ERROR reading from socket.");
+        writeError("CLIENT: ERROR reading from socket.\n");
     // printf("CLIENT: Server received key\n");
 
-    fclose(plaintext);
     fclose(key);
 
     // Section to get ciphertext back from server
@@ -156,7 +157,7 @@ int main(int argc, char *argv[])
         memset(buffer, '\0', 256);
         charsRead = recv(socketFD, buffer, 255, 0); // Read the client's message from the socket
         if (charsRead < 0)
-            writeError("ERROR reading from socket");
+            writeError("ERROR reading from socket\n");
         while (strstr(buffer, "@@") == NULL) // Keep reading if terminator not received
         {
             // Print what you got
@@ -164,7 +165,7 @@ int main(int argc, char *argv[])
             // Read more chars
             charsRead = recv(socketFD, buffer, 255, 0); // Read the client's message from the socket
             if (charsRead < 0)
-                writeError("ERROR reading from socket");
+                writeError("ERROR reading from socket\n");
         }
         int terminalLocation = strstr(buffer, "@@") - buffer; // Where is the terminal
         buffer[terminalLocation] = '\n';

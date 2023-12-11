@@ -12,13 +12,14 @@ void writeError(char *message)
     exit(1);
 }
 
-void encrypt(char *messageFile, char *keyFile)
+void encrypt(char *messageFile, char *keyFile, char *cipherFile)
 {
     FILE *cipher, *message, *key;
     char m, k, c, n = '\n';
     char validChars[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', ' '};
+    int i;
 
-    cipher = fopen("cipher.txt", "w");
+    cipher = fopen(cipherFile, "w");
     message = fopen(messageFile, "r");
     key = fopen(keyFile, "r");
 
@@ -26,7 +27,18 @@ void encrypt(char *messageFile, char *keyFile)
     k = getc(key);
     while (m != '\n')
     {
-        c = validChars[(m + k) % 27];
+        for (i = 0; i < 27; i++)
+        {
+            if (m == validChars[i])
+                m = i;
+        }
+        for (i = 0; i < 27; i++)
+        {
+            if (k == validChars[i])
+                k = i;
+        }
+        c = (m + k) % 27;
+        c = validChars[c];
         fwrite(&c, sizeof(char), 1, cipher);
         m = getc(message);
         k = getc(key);
@@ -86,7 +98,7 @@ int main(int argc, char *argv[])
             memset(buffer, '\0', 256);
             charsRead = recv(establishedConnectionFD, buffer, 255, 0); // Read the client's message from the socket
             if (charsRead < 0)
-                writeError("ERROR reading from socket");
+                writeError("ERROR reading message from socket");
             while (strstr(buffer, "@@") == NULL) // Keep reading if terminator not received
             {
                 // Write what you got
@@ -94,7 +106,7 @@ int main(int argc, char *argv[])
                 // Read more chars
                 charsRead = recv(establishedConnectionFD, buffer, 255, 0); // Read the client's message from the socket
                 if (charsRead < 0)
-                    writeError("ERROR reading from socket");
+                    writeError("ERROR reading more message from socket");
             }
             int terminalLocation = strstr(buffer, "@@") - buffer; // Where is the terminal
             buffer[terminalLocation] = '\n';
@@ -119,7 +131,7 @@ int main(int argc, char *argv[])
             memset(buffer, '\0', 256);
             charsRead = recv(establishedConnectionFD, buffer, 255, 0); // Read the client's message from the socket
             if (charsRead < 0)
-                writeError("ERROR reading from socket");
+                writeError("ERROR reading key from socket");
             while (strstr(buffer, "@@") == NULL) // Keep reading if terminator not received
             {
                 // Write what you got
@@ -127,7 +139,7 @@ int main(int argc, char *argv[])
                 // Read more chars
                 charsRead = recv(establishedConnectionFD, buffer, 255, 0); // Read the client's message from the socket
                 if (charsRead < 0)
-                    writeError("ERROR reading from socket");
+                    writeError("ERROR reading more key from socket");
             }
             int terminalLocation = strstr(buffer, "@@") - buffer; // Where is the terminal
             buffer[terminalLocation] = '\n';
@@ -144,7 +156,7 @@ int main(int argc, char *argv[])
             writeError("ERROR writing to socket");
 
         // PERFORMS THE ENCRYPTION
-        encrypt(messageReceivedFile, keyReceivedFile);
+        encrypt(messageReceivedFile, keyReceivedFile, ciphertextFile);
 
         // SENDS CIPHERTEXT
         cipher = fopen(ciphertextFile, "r");

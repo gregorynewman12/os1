@@ -5,38 +5,41 @@
 
 int main()
 {
-    FILE *cipher, *message, *key;
-    char m, k, c, n = '\n';
+    FILE *plain, *cipher, *key;
+    char p, k, c, n = '\n';
     char validChars[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', ' '};
     int i;
 
-    cipher = fopen("cipher.txt", "w");
-    message = fopen("plaintext1", "r");
+    plain = fopen("plain.txt", "w");
+    cipher = fopen("cipher.txt", "r");
     key = fopen("key.txt", "r");
 
-    m = getc(message);
+    c = getc(cipher);
     k = getc(key);
-    while (m != '\n')
+    while (c != '\n')
     {
         for (i = 0; i < 27; i++)
         {
-            if (m == validChars[i])
-                m = i;
+            if (c == validChars[i])
+                c = i;
         }
         for (i = 0; i < 27; i++)
         {
             if (k == validChars[i])
                 k = i;
         }
-        c = (m + k) % 27;
-        c = validChars[c];
-        fwrite(&c, sizeof(char), 1, cipher);
-        m = getc(message);
+        p = c - k;
+        while (p < 0)
+            p += 27;
+        p = p % 27;
+        p = validChars[p];
+        fwrite(&p, sizeof(char), 1, plain);
+        c = getc(cipher);
         k = getc(key);
     }
-    fwrite(&n, sizeof(char), 1, cipher);
+    fwrite(&n, sizeof(char), 1, plain);
 
+    fclose(plain);
     fclose(cipher);
-    fclose(message);
     fclose(key);
 }
