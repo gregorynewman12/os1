@@ -185,6 +185,9 @@ int main(int argc, char *argv[])
             if (exitIfTrue)
                 break;
         }
+        remove(messageReceivedFile);
+        remove(keyReceivedFile);
+        remove(ciphertextFile);
 
         close(establishedConnectionFD); // Close the existing socket which is connected to the client
     }

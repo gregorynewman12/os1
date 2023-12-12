@@ -189,6 +189,10 @@ int main(int argc, char *argv[])
                 break;
         }
 
+        remove(ciphertextReceivedFile);
+        remove(keyReceivedFile);
+        remove(plaintextFile);
+
         close(establishedConnectionFD); // Close the existing socket which is connected to the client
     }
     close(listenSocketFD); // Close the listening socket
