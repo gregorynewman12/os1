@@ -55,9 +55,6 @@ int main(int argc, char *argv[])
     int listenSocketFD, establishedConnectionFD, portNumber, charsRead;
     socklen_t sizeOfClientInfo;
     char buffer[256];
-    char *messageReceivedFile = "receivedMessage";
-    char *keyReceivedFile = "receivedKey";
-    char *ciphertextFile = "cipher.txt";
     struct sockaddr_in serverAddress, clientAddress;
     if (argc < 2)
     {
@@ -104,7 +101,8 @@ int main(int argc, char *argv[])
                 writeError("ERROR writing to socket");
 
             // Opens file to store received message
-            receivedMessage = fopen(messageReceivedFile, "w");
+            char receivedMessage[70000];
+            memset(receivedMessage, '\0', 70000);
 
             // Section to get the complete message
             while (1)
@@ -113,22 +111,24 @@ int main(int argc, char *argv[])
                 charsRead = recv(establishedConnectionFD, buffer, 255, 0); // Read the client's message from the socket
                 if (charsRead < 0)
                     writeError("ERROR reading message from socket");
-                while (strstr(buffer, "@@") == NULL) // Keep reading if terminator not received
+                buffer[255] = '\0';
+                while (strstr(buffer, "@") == NULL) // Keep reading if terminator not received
                 {
                     // Write what you got
-                    fwrite(buffer, sizeof(char), strlen(buffer), receivedMessage);
+                    strcat(receivedMessage, buffer);
                     // Read more chars
-                    charsRead = recv(establishedConnectionFD, buffer, 255, 0); // Read the client's message from the socket
+                    charsRead = recv(establishedConnectionFD, buffer, 256, 0); // Read the client's message from the socket
                     if (charsRead < 0)
                         writeError("ERROR reading more message from socket");
+                    buffer[255] = '\0';
                 }
-                int terminalLocation = strstr(buffer, "@@") - buffer; // Where is the terminal
+                int terminalLocation = strstr(buffer, "@") - buffer; // Where is the terminal
                 buffer[terminalLocation] = '\n';
                 buffer[terminalLocation + 1] = '\0';
-                fwrite(buffer, sizeof(char), strlen(buffer), receivedMessage);
+                strcat(receivedMessage, buffer);
+                printf(receivedMessage);
                 break;
             }
-            fclose(receivedMessage);
 
             // Sends message that server received message
             char *confirmMessageReceived = "message received";
@@ -136,6 +136,7 @@ int main(int argc, char *argv[])
             if (charsRead != strlen(confirmMessageReceived))
                 writeError("ERROR writing to socket");
 
+            /*
             // Opens file to store received key
             receivedKey = fopen(keyReceivedFile, "w");
 
@@ -199,9 +200,8 @@ int main(int argc, char *argv[])
                 if (exitIfTrue)
                     break;
             }
-            remove(messageReceivedFile);
-            remove(keyReceivedFile);
-            remove(ciphertextFile);
+            fclose(cipher);
+            */
         }
         close(establishedConnectionFD); // Close the existing socket which is connected to the client
     }

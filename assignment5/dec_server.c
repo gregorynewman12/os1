@@ -202,6 +202,7 @@ int main(int argc, char *argv[])
                 if (exitIfTrue)
                     break;
             }
+            fclose(plain);
 
             remove(ciphertextReceivedFile);
             remove(keyReceivedFile);

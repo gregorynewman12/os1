@@ -96,22 +96,20 @@ int main(int argc, char *argv[])
     int exitIfTrue = 0;
     while (1)
     {
-        fgets(buffer, 254, plaintext);
+        fread(buffer, 1, 255, plaintext);
         if (strchr(buffer, '\n') != NULL) // If there is a newline found in the buffer, strip it and replace with null term
         {
             int newlineLocation = strchr(buffer, '\n') - buffer;
             buffer[newlineLocation] = '@';
-            buffer[newlineLocation + 1] = '@';
-            buffer[newlineLocation + 2] = '\0';
             exitIfTrue = 1; // Found newline and will exit after sending this chunk
         }
-        charsWritten = send(socketFD, buffer, strlen(buffer), 0); // Write to the server
+        charsWritten = send(socketFD, buffer, 255, 0); // Write to the server
         if (charsWritten < 0)
             writeError("CLIENT: ERROR writing plaintext to buffer.\n");
         while (charsWritten < strlen(buffer))
         {
             char *resumeSendPoint = &buffer[charsWritten];
-            int additionalWritten = send(socketFD, resumeSendPoint, strlen(buffer), 0); // Write more chars to the server
+            int additionalWritten = send(socketFD, resumeSendPoint, 255 - charsWritten, 0); // Write more chars to the server
             charsWritten += additionalWritten;
         }
         // Send terminating indicator and exit
@@ -128,6 +126,7 @@ int main(int argc, char *argv[])
         writeError("CLIENT: ERROR reading confirmation from socket.\n");
     // printf("CLIENT: Server received plaintext\n");
 
+    /*
     // This section sends the key to the server.
     exitIfTrue = 0;
     while (1)
@@ -188,6 +187,7 @@ int main(int argc, char *argv[])
         printf("%s", buffer);
         break;
     }
+    */
 
     close(socketFD); // Close the socket
 
