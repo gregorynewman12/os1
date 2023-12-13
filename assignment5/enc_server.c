@@ -6,12 +6,14 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+// Function to write to stderr and exit
 void writeError(char *message)
 {
     fprintf(stderr, "%s", message);
     exit(1);
 }
 
+// Encryption function
 char *encrypt(char *plaintext, char *key)
 {
     char c, p, k;
@@ -20,6 +22,7 @@ char *encrypt(char *plaintext, char *key)
     memset(ciphertext, '\0', strlen(plaintext));
     int i, j;
 
+    // This loop reads all characters in the plaintext
     for (i = 0; i < strlen(plaintext); i++)
     {
         // printf("i = %d\n", i);
@@ -27,6 +30,7 @@ char *encrypt(char *plaintext, char *key)
         k = key[i];
         if (p != '\n')
         {
+            // For each plaintext char, matches it to corresponding char in validChars
             for (j = 0; j < 27; j++)
             {
                 if (p == validChars[j])
@@ -35,6 +39,7 @@ char *encrypt(char *plaintext, char *key)
                     break;
                 }
             }
+            // For each char in keyFile, matches it to corresponding in validChars
             for (j = 0; j < 27; j++)
             {
                 if (k == validChars[j])
@@ -43,9 +48,9 @@ char *encrypt(char *plaintext, char *key)
                     break;
                 }
             }
-            c = (p + k) % 27;
+            c = (p + k) % 27; // Encryption algorithm
             c = validChars[c];
-            ciphertext[i] = c;
+            ciphertext[i] = c; // Generates ciphertext, character by character
             // printf("ciphertext[%d] = %c\n", i, c);
         }
     }
@@ -58,7 +63,7 @@ int main(int argc, char *argv[])
     socklen_t sizeOfClientInfo;
     char buffer[256];
     struct sockaddr_in serverAddress, clientAddress;
-    if (argc < 2)
+    if (argc < 2) // Catches improper usage
     {
         fprintf(stderr, "USAGE: %s port\n", argv[0]);
         exit(1);
@@ -79,7 +84,7 @@ int main(int argc, char *argv[])
     listen(listenSocketFD, 5); // Flip the socket on - it can now receive up to 5 connections
     while (1)
     {
-        FILE *receivedMessage, *receivedKey, *cipher;
+        FILE *cipher; // File to briefly store ciphertext after encryption
 
         // Accept a connection, blocking if one is not available until one connects
         sizeOfClientInfo = sizeof(clientAddress);                                                               // Get the size of the address for the client that will connect
@@ -129,13 +134,13 @@ int main(int argc, char *argv[])
                 buffer[terminalLocation + 1] = '\0';
                 strcat(receivedMessage, buffer);
                 // printf(receivedMessage);
-                FILE *messagefile = fopen("messageReceived", "w");
-                fprintf(messagefile, receivedMessage);
-                fclose(messagefile);
+                // FILE *messagefile = fopen("messageReceived", "w");
+                // fprintf(messagefile, receivedMessage);
+                // fclose(messagefile);
                 break;
             }
 
-            // Sends message that server received message
+            // Sends confirmation that server received message
             char *confirmMessageReceived = "message received";
             charsRead = send(establishedConnectionFD, confirmMessageReceived, strlen(confirmMessageReceived), 0); // Send success back
             if (charsRead != strlen(confirmMessageReceived))
@@ -150,7 +155,7 @@ int main(int argc, char *argv[])
             while (1)
             {
                 memset(buffer, '\0', 256);
-                charsRead = recv(establishedConnectionFD, buffer, 255, 0); // Read the client's message from the socket
+                charsRead = recv(establishedConnectionFD, buffer, 255, 0); // Read the client's key from the socket
                 if (charsRead < 0)
                     writeError("ERROR reading message from socket");
                 // printf("Server received: [%s]\n", buffer);
@@ -160,7 +165,7 @@ int main(int argc, char *argv[])
                     // Write what you got
                     strcat(receivedKey, buffer);
                     // Read more chars
-                    charsRead = recv(establishedConnectionFD, buffer, 255, 0); // Read the client's message from the socket
+                    charsRead = recv(establishedConnectionFD, buffer, 255, 0); // Read the client's key from the socket
                     if (charsRead < 0)
                         writeError("ERROR reading more message from socket");
                     buffer[255] = '\0';
@@ -171,9 +176,9 @@ int main(int argc, char *argv[])
                 strcat(receivedKey, buffer);
                 // printf(receivedKey);
 
-                FILE *keyfile = fopen("keyReceived", "w");
-                fprintf(keyfile, receivedKey);
-                fclose(keyfile);
+                // FILE *keyfile = fopen("keyReceived", "w");
+                // fprintf(keyfile, receivedKey);
+                // fclose(keyfile);
                 break;
             }
 
@@ -218,6 +223,10 @@ int main(int argc, char *argv[])
                     break;
             }
             fclose(cipherfile);
+            remove("ciphertext");
+            // remove("messageReceived");
+            // remove("keyReceived");
+            free(ctext);
             // printf("Done sending key.\n");
         }
         close(establishedConnectionFD); // Close the existing socket which is connected to the client

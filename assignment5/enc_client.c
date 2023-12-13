@@ -7,6 +7,7 @@
 #include <netinet/in.h>
 #include <netdb.h>
 
+// Function to write to stderr and exit the program.
 void writeError(char *message)
 {
     fprintf(stderr, "%s", message);
@@ -20,7 +21,7 @@ int main(int argc, char *argv[])
     struct sockaddr_in serverAddress;
     struct hostent *serverHostInfo;
     char buffer[256], plaintext_file_name[256], key_file_name[256];
-    if (argc < 4)
+    if (argc < 4) // Correct number of args not entered
     {
         fprintf(stderr, "USAGE: %s plaintext_file_name key_file_name port_number\n", argv[0]);
         exit(0);
@@ -38,24 +39,25 @@ int main(int argc, char *argv[])
         writeError("ERROR: CLIENT: Error opening key file.\n");
 
     int i;
-    // Reads number of chars in key file
+    // Reads number of chars in key file and checks for invalid chars
     for (i = getc(key); i != EOF; i = getc(key))
     {
         keyLength += 1;
         if (!(i >= 65 && i <= 90) && i != 32 && i != 10)
             writeError("ERROR: CLIENT: Invalid characters in key.\n");
     }
-    rewind(key);
-    // Reads number of chars in plaintext file
+    rewind(key); // Puts file pointer back to beginning of key file
+
+    // Reads number of chars in plaintext file and checks for invalid chars
     for (i = getc(plaintext); i != EOF; i = getc(plaintext))
     {
         plaintextLength += 1;
         if (!(i >= 65 && i <= 90) && i != 32 && i != 10)
             writeError("ERROR: CLIENT: Invalid characters in plaintext.\n");
     }
-    rewind(plaintext);
+    rewind(plaintext); // Puts file pointer back to beginning of plaintext file
 
-    if (keyLength < plaintextLength)
+    if (keyLength < plaintextLength) // Checks key length
         writeError("ERROR: Key too short.\n");
 
     // Set up the server address struct
@@ -96,17 +98,17 @@ int main(int argc, char *argv[])
     int exitIfTrue = 0;
     while (1)
     {
-        fread(buffer, 1, 255, plaintext);
+        fread(buffer, 1, 255, plaintext); // Reads 255 characters
         if (strchr(buffer, '\n') != NULL) // If there is a newline found in the buffer, strip it and replace with null term
         {
             int newlineLocation = strchr(buffer, '\n') - buffer;
-            buffer[newlineLocation] = '@';
-            exitIfTrue = 1; // Found newline and will exit after sending this chunk
+            buffer[newlineLocation] = '@'; // Replaces newline with terminal indicator
+            exitIfTrue = 1;                // Found newline and will exit after sending this chunk
         }
         charsWritten = send(socketFD, buffer, 255, 0); // Write to the server
         if (charsWritten < 0)
             writeError("CLIENT: ERROR writing plaintext to buffer.\n");
-        while (charsWritten < strlen(buffer))
+        while (charsWritten < strlen(buffer)) // Catches error where not all characters sent
         {
             char *resumeSendPoint = &buffer[charsWritten];
             int additionalWritten = send(socketFD, resumeSendPoint, 255 - charsWritten, 0); // Write more chars to the server
@@ -130,7 +132,7 @@ int main(int argc, char *argv[])
     exitIfTrue = 0;
     while (1)
     {
-        fread(buffer, 1, 255, key);
+        fread(buffer, 1, 255, key);       // Reads 255 chars from file
         if (strchr(buffer, '\n') != NULL) // If there is a newline found in the buffer, strip it and replace with null term
         {
             int newlineLocation = strchr(buffer, '\n') - buffer;
@@ -171,7 +173,7 @@ int main(int argc, char *argv[])
     while (1)
     {
         memset(buffer, '\0', 256);
-        charsRead = recv(socketFD, buffer, 255, 0); // Read the client's message from the socket
+        charsRead = recv(socketFD, buffer, 255, 0); // Read the ciphertext back from the socket
         if (charsRead < 0)
             writeError("ERROR reading message from socket");
         // printf("Server received: [%s]\n", buffer);

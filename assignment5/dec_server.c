@@ -6,12 +6,14 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+// Function to write to stderr and exit
 void writeError(char *message)
 {
     fprintf(stderr, "%s", message);
     exit(1);
 }
 
+// Decryption function
 char *decrypt(char *ciphertext, char *key)
 {
     char c, p, k;
@@ -20,12 +22,14 @@ char *decrypt(char *ciphertext, char *key)
     memset(plaintext, '\0', strlen(ciphertext));
     int i, j;
 
+    // Iterates through ciphertext char by char
     for (i = 0; i < strlen(ciphertext); i++)
     {
         c = ciphertext[i];
         k = key[i];
         if (c != '\n')
         {
+            // Matches ciphertext char to char in validChars
             for (j = 0; j < 27; j++)
             {
                 if (c == validChars[j])
@@ -34,6 +38,7 @@ char *decrypt(char *ciphertext, char *key)
                     break;
                 }
             }
+            // Matches key char to char in validChars
             for (j = 0; j < 27; j++)
             {
                 if (k == validChars[j])
@@ -42,11 +47,11 @@ char *decrypt(char *ciphertext, char *key)
                     break;
                 }
             }
-            p = (c - k) % 27;
-            while (p < 0)
+            p = (c - k) % 27; // Decryption algorithm
+            while (p < 0)     // Adjusts negative numbers
                 p += 27;
             p = validChars[p];
-            plaintext[i] = p;
+            plaintext[i] = p; // Builds plaintext char by char
         }
     }
     return plaintext;
@@ -58,7 +63,7 @@ int main(int argc, char *argv[])
     socklen_t sizeOfClientInfo;
     char buffer[256];
     struct sockaddr_in serverAddress, clientAddress;
-    if (argc < 2)
+    if (argc < 2) // Catches improper usage
     {
         fprintf(stderr, "USAGE: %s port\n", argv[0]);
         exit(1);
@@ -79,7 +84,7 @@ int main(int argc, char *argv[])
     listen(listenSocketFD, 5); // Flip the socket on - it can now receive up to 5 connections
     while (1)
     {
-        FILE *receivedMessage, *receivedKey, *plain;
+        FILE *plain; // File to briefly store plaintext after decryption
 
         // Accept a connection, blocking if one is not available until one connects
         sizeOfClientInfo = sizeof(clientAddress);                                                               // Get the size of the address for the client that will connect
@@ -218,6 +223,10 @@ int main(int argc, char *argv[])
                     break;
             }
             fclose(plainfile);
+            remove("plaintext");
+            // remove("messageReceived");
+            // remove("keyReceived");
+            free(ptext);
             // printf("Done sending key.\n");
         }
         close(establishedConnectionFD); // Close the existing socket which is connected to the client
