@@ -17,10 +17,12 @@ char *encrypt(char *plaintext, char *key)
     char c, p, k;
     char validChars[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', ' '};
     char *ciphertext = malloc(strlen(plaintext));
+    memset(ciphertext, '\0', strlen(plaintext));
     int i, j;
 
     for (i = 0; i < strlen(plaintext); i++)
     {
+        // printf("i = %d\n", i);
         p = plaintext[i];
         k = key[i];
         if (p != '\n')
@@ -44,6 +46,7 @@ char *encrypt(char *plaintext, char *key)
             c = (p + k) % 27;
             c = validChars[c];
             ciphertext[i] = c;
+            // printf("ciphertext[%d] = %c\n", i, c);
         }
     }
     return ciphertext;
@@ -168,9 +171,9 @@ int main(int argc, char *argv[])
                 strcat(receivedKey, buffer);
                 // printf(receivedKey);
 
-                // FILE *keyfile = fopen("keyReceived", "w");
-                // fprintf(keyfile, receivedKey);
-                // fclose(keyfile);
+                FILE *keyfile = fopen("keyReceived", "w");
+                fprintf(keyfile, receivedKey);
+                fclose(keyfile);
                 break;
             }
 
@@ -183,9 +186,9 @@ int main(int argc, char *argv[])
             // printf("SERVER: Sent confirmation message.\n");
 
             // PERFORMS THE ENCRYPTION
-            char *ciphertext = encrypt(receivedMessage, receivedKey);
+            char *ctext = encrypt(receivedMessage, receivedKey);
             FILE *cipherfile = fopen("ciphertext", "w");
-            fprintf(cipherfile, "%s\n", ciphertext);
+            fprintf(cipherfile, "%s\n", ctext);
             fclose(cipherfile);
 
             // This section sends the ciphertext back to the server.

@@ -17,6 +17,7 @@ char *decrypt(char *ciphertext, char *key)
     char c, p, k;
     char validChars[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', ' '};
     char *plaintext = malloc(strlen(ciphertext));
+    memset(plaintext, '\0', strlen(ciphertext));
     int i, j;
 
     for (i = 0; i < strlen(ciphertext); i++)
@@ -185,9 +186,9 @@ int main(int argc, char *argv[])
             // printf("SERVER: Sent confirmation message.\n");
 
             // PERFORMS THE DECRYPTION
-            char *plaintext = decrypt(receivedMessage, receivedKey);
+            char *ptext = decrypt(receivedMessage, receivedKey);
             FILE *plainfile = fopen("plaintext", "w");
-            fprintf(plainfile, "%s\n", plaintext);
+            fprintf(plainfile, "%s\n", ptext);
             fclose(plainfile);
 
             // This section sends the plaintext back to the server.
