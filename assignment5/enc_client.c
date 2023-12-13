@@ -77,6 +77,21 @@ int main(int argc, char *argv[])
     if (connect(socketFD, (struct sockaddr *)&serverAddress, sizeof(serverAddress)) < 0) // Connect socket to addy
         writeError("CLIENT: ERROR connecting to socket.\n");
 
+    // This section sends a greeting message to the server.
+    char *greeting = "I am enc_client";
+    charsRead = send(socketFD, greeting, strlen(greeting), 0); // Send success back
+    if (charsRead != strlen(greeting))
+        writeError("ERROR writing to socket");
+
+    // Gets confirmation from client
+    char *expectedConfirmation = "OK to continue";
+    memset(buffer, '\0', sizeof(buffer));                      // Clear out the buffer again for reuse
+    charsRead = recv(socketFD, buffer, sizeof(buffer) - 1, 0); // Read data from the socket, leaving \0 at end
+    if (charsRead != strlen(expectedConfirmation) || strcmp(buffer, expectedConfirmation) != 0)
+    { // Expects message "OK to continue"
+        writeError("ERROR: enc_client cannot use dec_server\n");
+    }
+
     // This section sends the plaintext to the server.
     int exitIfTrue = 0;
     while (1)
