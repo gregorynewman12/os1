@@ -7,17 +7,41 @@
 #include <netinet/in.h>
 #include <netdb.h>
 
+char *encrypt(char *plaintext, char *key)
+{
+    char c, p, k, n = '\n';
+    char validChars[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', ' '};
+    char *ciphertext = malloc(strlen(plaintext));
+    int i, j;
+
+    for (i = 0; i < strlen(plaintext); i++)
+    {
+        p = plaintext[i];
+        if (p != '\n')
+        {
+            for (j = 0; j < 27; j++)
+            {
+                if (p == validChars[i])
+                    p = j;
+            }
+            for (j = 0; j < 27; j++)
+            {
+                if (k == validChars[i])
+                    k = j;
+            }
+            c = (p + k) % 27;
+            c = validChars[c];
+            ciphertext[i] = c;
+        }
+    }
+    return ciphertext;
+}
+
 int main()
 {
-    FILE *plaintext = fopen("plaintext1", "r");
-    char text[20];
-    memset(text, '\0', 1);
-    fread(text, 1, 13, plaintext);
-    printf("Text: %s\n", text);
-    printf("Length expect 13: %d\n", strlen(text));
-    int i;
-    for (i = 0; i < 18; i++)
-    {
-        printf("Character %d: %d\n", i, text[i]);
-    }
+    char *orig = "THE RED GOOSE FLIES AT MIDNIGHT STOP";
+    char *keyy = "SKJICKSJD JKSKICS IDIFSOIDFKASDFKS S";
+    printf("Original: %s %d\n", orig, strlen(orig));
+    char *ctext = encrypt(orig, keyy);
+    printf("Cipherte: %s %d\n", ctext, strlen(ctext));
 }
