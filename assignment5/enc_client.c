@@ -192,9 +192,7 @@ int main(int argc, char *argv[])
         strcat(receivedCiphertext, buffer);
         // printf(receivedKey);
 
-        FILE *cipherfile = fopen("receivedCiphertext", "w");
-        fprintf(cipherfile, receivedCiphertext);
-        fclose(cipherfile);
+        printf(receivedCiphertext);
         break;
     }
 

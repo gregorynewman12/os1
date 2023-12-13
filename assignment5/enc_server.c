@@ -14,7 +14,7 @@ void writeError(char *message)
 
 char *encrypt(char *plaintext, char *key)
 {
-    char c, p, k, n = '\n';
+    char c, p, k;
     char validChars[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', ' '};
     char *ciphertext = malloc(strlen(plaintext));
     int i, j;
@@ -22,17 +22,24 @@ char *encrypt(char *plaintext, char *key)
     for (i = 0; i < strlen(plaintext); i++)
     {
         p = plaintext[i];
+        k = key[i];
         if (p != '\n')
         {
             for (j = 0; j < 27; j++)
             {
-                if (p == validChars[i])
+                if (p == validChars[j])
+                {
                     p = j;
+                    break;
+                }
             }
             for (j = 0; j < 27; j++)
             {
-                if (k == validChars[i])
+                if (k == validChars[j])
+                {
                     k = j;
+                    break;
+                }
             }
             c = (p + k) % 27;
             c = validChars[c];
@@ -161,9 +168,9 @@ int main(int argc, char *argv[])
                 strcat(receivedKey, buffer);
                 // printf(receivedKey);
 
-                FILE *keyfile = fopen("keyReceived", "w");
-                fprintf(keyfile, receivedKey);
-                fclose(keyfile);
+                // FILE *keyfile = fopen("keyReceived", "w");
+                // fprintf(keyfile, receivedKey);
+                // fclose(keyfile);
                 break;
             }
 
