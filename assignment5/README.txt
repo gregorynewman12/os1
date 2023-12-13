@@ -1,0 +1,9 @@
+COMPILE MY CODE WITH THE FOLLOWING COMMAND:
+
+./compileall
+
+RUN MY CODE WITH THE FOLLOWING COMMAND:
+
+./p5testscript encport decport
+
+WHERE encport AND decport ARE PORT NUMBERS
