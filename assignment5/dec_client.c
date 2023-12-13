@@ -26,9 +26,9 @@ int main(int argc, char *argv[])
         exit(0);
     } // Check usage & args
 
-    strlcpy(ciphertext_file_name, argv[1], 255); // Copy ciphertext file name
-    strlcpy(key_file_name, argv[2], 255);        // Copy key file name
-    portNumber = atoi(argv[3]);                  // Get the port number, convert to an integer from a string
+    strcpy(ciphertext_file_name, argv[1]); // Copy ciphertext file name
+    strcpy(key_file_name, argv[2]);        // Copy key file name
+    portNumber = atoi(argv[3]);            // Get the port number, convert to an integer from a string
 
     ciphertext = fopen(ciphertext_file_name, "r");
     if (ciphertext == NULL)

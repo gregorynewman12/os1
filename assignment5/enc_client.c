@@ -26,9 +26,9 @@ int main(int argc, char *argv[])
         exit(0);
     } // Check usage & args
 
-    strlcpy(plaintext_file_name, argv[1], 255); // Copy plaintext file name
-    strlcpy(key_file_name, argv[2], 255);       // Copy key file name
-    portNumber = atoi(argv[3]);                 // Get the port number, convert to an integer from a string
+    strcpy(plaintext_file_name, argv[1]); // Copy plaintext file name
+    strcpy(key_file_name, argv[2]);       // Copy key file name
+    portNumber = atoi(argv[3]);           // Get the port number, convert to an integer from a string
 
     plaintext = fopen(plaintext_file_name, "r");
     if (plaintext == NULL)
